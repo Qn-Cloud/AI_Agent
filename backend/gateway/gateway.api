@@ -1,0 +1,384 @@
+syntax = "v1"
+
+info(
+    title: "AI角色扮演语音交互产品 - API网关"
+    desc: "统一API入口，路由分发和认证"
+    author: "backend team"
+    version: "1.0"
+)
+
+// 公共类型定义
+type BaseResponse {
+    Code int    `json:"code"`
+    Msg  string `json:"msg"`
+}
+
+// ========== 用户服务路由 ==========
+@server(
+    group: user
+    prefix: /api/user
+)
+service gateway-api {
+    // 用户注册
+    @handler userRegister
+    post /register (RegisterRequest) returns (RegisterResponse)
+    
+    // 用户登录
+    @handler userLogin
+    post /login (LoginRequest) returns (LoginResponse)
+    
+    // 检查用户名可用性
+    @handler checkUsername
+    get /check-username (CheckUsernameRequest) returns (CheckUsernameResponse)
+    
+    // 检查邮箱可用性
+    @handler checkEmail
+    get /check-email (CheckEmailRequest) returns (CheckEmailResponse)
+}
+
+// 需要认证的用户接口
+@server(
+    jwt: Auth
+    group: user
+    prefix: /api/user
+    middleware: AuthMiddleware
+)
+service gateway-api {
+    // 获取用户信息
+    @handler getUserInfo
+    get /info returns (UserInfoResponse)
+    
+    // 更新用户信息
+    @handler updateUserInfo
+    put /info (UpdateUserInfoRequest) returns (BaseResponse)
+    
+    // 修改密码
+    @handler changePassword
+    put /password (ChangePasswordRequest) returns (BaseResponse)
+    
+    // 用户退出
+    @handler userLogout
+    post /logout returns (BaseResponse)
+    
+    // 刷新token
+    @handler refreshToken
+    post /refresh (RefreshTokenRequest) returns (RefreshTokenResponse)
+    
+    // 上传头像
+    @handler uploadAvatar
+    post /avatar returns (UploadAvatarResponse)
+}
+
+// ========== 角色服务路由 ==========
+@server(
+    group: character
+    prefix: /api/character
+)
+service gateway-api {
+    // 获取角色列表
+    @handler getCharacterList
+    get /list (CharacterListRequest) returns (CharacterListResponse)
+    
+    // 搜索角色
+    @handler searchCharacters
+    get /search (SearchCharacterRequest) returns (CharacterListResponse)
+    
+    // 获取角色详情
+    @handler getCharacterDetail
+    get /:id (CharacterDetailRequest) returns (CharacterDetailResponse)
+    
+    // 获取推荐角色
+    @handler getRecommendedCharacters
+    get /recommended (RecommendedRequest) returns (CharacterListResponse)
+    
+    // 获取角色分类
+    @handler getCharacterCategories
+    get /categories returns (CategoriesResponse)
+    
+    // 获取热门角色
+    @handler getPopularCharacters
+    get /popular (PaginationRequest) returns (CharacterListResponse)
+    
+    // 获取角色标签
+    @handler getCharacterTags
+    get /tags returns (TagsResponse)
+}
+
+// 需要认证的角色接口
+@server(
+    jwt: Auth
+    group: character
+    prefix: /api/character
+    middleware: AuthMiddleware
+)
+service gateway-api {
+    // 创建自定义角色
+    @handler createCharacter
+    post / (CreateCharacterRequest) returns (CreateCharacterResponse)
+    
+    // 更新角色信息
+    @handler updateCharacter
+    put /:id (UpdateCharacterRequest) returns (BaseResponse)
+    
+    // 删除角色
+    @handler deleteCharacter
+    delete /:id (DeleteCharacterRequest) returns (BaseResponse)
+    
+    // 收藏/取消收藏角色
+    @handler toggleFavorite
+    post /:id/favorite (ToggleFavoriteRequest) returns (BaseResponse)
+    
+    // 获取我的收藏角色
+    @handler getMyFavorites
+    get /favorites (PaginationRequest) returns (CharacterListResponse)
+    
+    // 获取我创建的角色
+    @handler getMyCharacters
+    get /my (PaginationRequest) returns (CharacterListResponse)
+    
+    // 更新角色提示词
+    @handler updatePrompt
+    put /:id/prompt (UpdatePromptRequest) returns (BaseResponse)
+    
+    // 更新角色性格设置
+    @handler updatePersonality
+    put /:id/personality (UpdatePersonalityRequest) returns (BaseResponse)
+    
+    // 更新语音设置
+    @handler updateVoiceSettings
+    put /:id/voice (UpdateVoiceSettingsRequest) returns (BaseResponse)
+}
+
+// ========== 对话服务路由 ==========
+@server(
+    jwt: Auth
+    group: chat
+    prefix: /api/chat
+    middleware: AuthMiddleware
+)
+service gateway-api {
+    // 发送消息
+    @handler sendMessage
+    post /message (SendMessageRequest) returns (SendMessageResponse)
+    
+    // 创建新对话
+    @handler createConversation
+    post /conversation (CreateConversationRequest) returns (CreateConversationResponse)
+    
+    // 获取对话详情
+    @handler getConversation
+    get /conversation/:id (GetConversationRequest) returns (ConversationResponse)
+    
+    // 获取对话列表
+    @handler getConversationList
+    get /conversations (ConversationListRequest) returns (ConversationListResponse)
+    
+    // 获取对话消息历史
+    @handler getMessages
+    get /conversation/:id/messages (MessageListRequest) returns (MessageListResponse)
+    
+    // 删除对话
+    @handler deleteConversation
+    delete /conversation/:id (DeleteConversationRequest) returns (BaseResponse)
+    
+    // 清空对话消息
+    @handler clearMessages
+    delete /conversation/:id/messages (ClearMessagesRequest) returns (BaseResponse)
+    
+    // 更新对话标题
+    @handler updateConversationTitle
+    put /conversation/:id/title (UpdateTitleRequest) returns (BaseResponse)
+    
+    // 搜索对话
+    @handler searchConversations
+    get /search (SearchConversationRequest) returns (ConversationListResponse)
+    
+    // 导出对话记录
+    @handler exportConversation
+    get /conversation/:id/export (ExportConversationRequest) returns (ExportResponse)
+    
+    // 批量删除对话
+    @handler batchDeleteConversations
+    post /conversations/batch-delete (BatchDeleteRequest) returns (BaseResponse)
+}
+
+// ========== 语音服务路由 ==========
+@server(
+    jwt: Auth
+    group: speech
+    prefix: /api/speech
+    middleware: AuthMiddleware
+)
+service gateway-api {
+    // 语音转文字
+    @handler speechToText
+    post /stt (SttRequest) returns (SttResponse)
+    
+    // 文字转语音
+    @handler textToSpeech
+    post /tts (TtsRequest) returns (TtsResponse)
+    
+    // 上传语音文件
+    @handler uploadAudio
+    post /upload returns (UploadAudioResponse)
+    
+    // 获取语音文件
+    @handler getAudio
+    get /audio/:id (GetAudioRequest) returns (GetAudioResponse)
+}
+
+// ========== AI服务路由 ==========
+@server(
+    jwt: Auth
+    group: ai
+    prefix: /api/ai
+    middleware: AuthMiddleware,RateLimitMiddleware
+)
+service gateway-api {
+    // AI对话
+    @handler aiChat
+    post /chat (ChatRequest) returns (ChatResponse)
+    
+    // 获取AI模型列表
+    @handler getAIModels
+    get /models returns (AIModelsResponse)
+    
+    // 获取用户使用统计
+    @handler getUsageStats
+    get /usage (UsageStatsRequest) returns (UsageStatsResponse)
+}
+
+// ========== 存储服务路由 ==========
+@server(
+    jwt: Auth
+    group: storage
+    prefix: /api/storage
+    middleware: AuthMiddleware
+)
+service gateway-api {
+    // 上传文件
+    @handler uploadFile
+    post /upload returns (UploadFileResponse)
+    
+    // 删除文件
+    @handler deleteFile
+    delete /file/:id (DeleteFileRequest) returns (BaseResponse)
+    
+    // 获取文件信息
+    @handler getFileInfo
+    get /file/:id (GetFileInfoRequest) returns (FileInfoResponse)
+}
+
+// ========== 健康检查和监控 ==========
+@server(
+    group: health
+    prefix: /api
+)
+service gateway-api {
+    // 健康检查
+    @handler healthCheck
+    get /health returns (HealthResponse)
+    
+    // 服务状态
+    @handler serviceStatus
+    get /status returns (ServiceStatusResponse)
+    
+    // API版本信息
+    @handler versionInfo
+    get /version returns (VersionResponse)
+}
+
+// ========== 类型定义 ==========
+
+// 用户相关类型
+type RegisterRequest {
+    Username string `json:"username" validate:"required,min=3,max=20"`
+    Email    string `json:"email" validate:"required,email"`
+    Password string `json:"password" validate:"required,min=6,max=20"`
+}
+
+type RegisterResponse {
+    Code int       `json:"code"`
+    Msg  string    `json:"msg"`
+    Data *UserInfo `json:"data,omitempty"`
+    Token string   `json:"token,omitempty"`
+}
+
+type LoginRequest {
+    Username string `json:"username" validate:"required"`
+    Password string `json:"password" validate:"required"`
+    Remember bool   `json:"remember,optional"`
+}
+
+type LoginResponse {
+    Code int       `json:"code"`
+    Msg  string    `json:"msg"`
+    Data *UserInfo `json:"data,omitempty"`
+    Token string   `json:"token,omitempty"`
+    RefreshToken string `json:"refresh_token,omitempty"`
+}
+
+type UserInfo {
+    Id         int64  `json:"id"`
+    Username   string `json:"username"`
+    Email      string `json:"email"`
+    Nickname   string `json:"nickname"`
+    Avatar     string `json:"avatar"`
+    Bio        string `json:"bio"`
+    Status     int    `json:"status"`
+    CreatedAt  string `json:"created_at"`
+    UpdatedAt  string `json:"updated_at"`
+}
+
+type UserInfoResponse {
+    Code int       `json:"code"`
+    Msg  string    `json:"msg"`
+    Data *UserInfo `json:"data,omitempty"`
+}
+
+// 分页相关
+type PaginationRequest {
+    Page     int `form:"page,default=1"`
+    PageSize int `form:"page_size,default=20"`
+}
+
+// 健康检查相关
+type HealthResponse {
+    Code int    `json:"code"`
+    Msg  string `json:"msg"`
+    Data *HealthData `json:"data,omitempty"`
+}
+
+type HealthData {
+    Status    string            `json:"status"`
+    Timestamp string            `json:"timestamp"`
+    Services  map[string]string `json:"services"`
+}
+
+type ServiceStatusResponse {
+    Code int    `json:"code"`
+    Msg  string `json:"msg"`
+    Data *ServiceStatusData `json:"data,omitempty"`
+}
+
+type ServiceStatusData {
+    Gateway   string `json:"gateway"`
+    User      string `json:"user"`
+    Character string `json:"character"`
+    Chat      string `json:"chat"`
+    AI        string `json:"ai"`
+    Speech    string `json:"speech"`
+    Storage   string `json:"storage"`
+}
+
+type VersionResponse {
+    Code int    `json:"code"`
+    Msg  string `json:"msg"`
+    Data *VersionData `json:"data,omitempty"`
+}
+
+type VersionData {
+    Version   string `json:"version"`
+    BuildTime string `json:"build_time"`
+    GitCommit string `json:"git_commit"`
+} 

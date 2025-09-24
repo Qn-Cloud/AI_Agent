@@ -1,0 +1,64 @@
+syntax = "v1"
+
+info(
+    title: "用户服务API"
+    desc: "用户注册、登录、信息管理"
+    author: "backend team"
+    version: "1.0"
+)
+
+import "user_types.api"
+
+// JWT认证
+@server(
+    jwt: Auth
+    group: user
+    middleware: UserAuthMiddleware
+)
+service user-api {
+    @doc "用户注册"
+    @handler register
+    post /api/user/register (RegisterRequest) returns (RegisterResponse)
+    
+    @doc "用户登录"
+    @handler login
+    post /api/user/login (LoginRequest) returns (LoginResponse)
+    
+    @doc "刷新token"
+    @handler refreshToken
+    post /api/user/refresh (RefreshTokenRequest) returns (RefreshTokenResponse)
+    
+    @doc "用户退出"
+    @handler logout
+    post /api/user/logout
+    
+    @doc "获取用户信息"
+    @handler getUserInfo
+    get /api/user/info returns (UserInfoResponse)
+    
+    @doc "更新用户信息"
+    @handler updateUserInfo
+    put /api/user/info (UpdateUserInfoRequest) returns (BaseResponse)
+    
+    @doc "修改密码"
+    @handler changePassword
+    put /api/user/password (ChangePasswordRequest) returns (BaseResponse)
+    
+    @doc "上传头像"
+    @handler uploadAvatar
+    post /api/user/avatar returns (UploadAvatarResponse)
+}
+
+// 无需认证的接口
+@server(
+    group: public
+)
+service user-api {
+    @doc "检查用户名是否可用"
+    @handler checkUsername
+    get /api/user/check-username (CheckUsernameRequest) returns (CheckUsernameResponse)
+    
+    @doc "检查邮箱是否可用"
+    @handler checkEmail
+    get /api/user/check-email (CheckEmailRequest) returns (CheckEmailResponse)
+} 

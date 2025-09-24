@@ -1,0 +1,109 @@
+syntax = "v1"
+
+// 基础响应
+type BaseResponse {
+    Code int    `json:"code"`
+    Msg  string `json:"msg"`
+}
+
+// 用户注册
+type RegisterRequest {
+    Username string `json:"username" validate:"required,min=3,max=20"`
+    Email    string `json:"email" validate:"required,email"`
+    Password string `json:"password" validate:"required,min=6,max=20"`
+    Code     string `json:"code,optional"` // 验证码
+}
+
+type RegisterResponse {
+    Code   int         `json:"code"`
+    Msg    string      `json:"msg"`
+    Data   *UserInfo   `json:"data,omitempty"`
+    Token  string      `json:"token,omitempty"`
+}
+
+// 用户登录
+type LoginRequest {
+    Username string `json:"username" validate:"required"`
+    Password string `json:"password" validate:"required"`
+    Remember bool   `json:"remember,optional"` // 记住登录
+}
+
+type LoginResponse {
+    Code int       `json:"code"`
+    Msg  string    `json:"msg"`
+    Data *UserInfo `json:"data,omitempty"`
+    Token string   `json:"token,omitempty"`
+    RefreshToken string `json:"refresh_token,omitempty"`
+}
+
+// 刷新Token
+type RefreshTokenRequest {
+    RefreshToken string `json:"refresh_token" validate:"required"`
+}
+
+type RefreshTokenResponse {
+    Code int    `json:"code"`
+    Msg  string `json:"msg"`
+    Token string `json:"token,omitempty"`
+}
+
+// 用户信息
+type UserInfo {
+    Id         int64  `json:"id"`
+    Username   string `json:"username"`
+    Email      string `json:"email"`
+    Nickname   string `json:"nickname"`
+    Avatar     string `json:"avatar"`
+    Bio        string `json:"bio"`
+    Status     int    `json:"status"`
+    CreatedAt  string `json:"created_at"`
+    UpdatedAt  string `json:"updated_at"`
+}
+
+type UserInfoResponse {
+    Code int       `json:"code"`
+    Msg  string    `json:"msg"`
+    Data *UserInfo `json:"data,omitempty"`
+}
+
+// 更新用户信息
+type UpdateUserInfoRequest {
+    Nickname string `json:"nickname,optional"`
+    Bio      string `json:"bio,optional"`
+    Avatar   string `json:"avatar,optional"`
+}
+
+// 修改密码
+type ChangePasswordRequest {
+    OldPassword string `json:"old_password" validate:"required"`
+    NewPassword string `json:"new_password" validate:"required,min=6,max=20"`
+}
+
+// 检查用户名
+type CheckUsernameRequest {
+    Username string `form:"username" validate:"required"`
+}
+
+type CheckUsernameResponse {
+    Code      int  `json:"code"`
+    Msg       string `json:"msg"`
+    Available bool `json:"available"`
+}
+
+// 检查邮箱
+type CheckEmailRequest {
+    Email string `form:"email" validate:"required,email"`
+}
+
+type CheckEmailResponse {
+    Code      int  `json:"code"`
+    Msg       string `json:"msg"`
+    Available bool `json:"available"`
+}
+
+// 上传头像
+type UploadAvatarResponse {
+    Code int    `json:"code"`
+    Msg  string `json:"msg"`
+    Url  string `json:"url,omitempty"`
+} 

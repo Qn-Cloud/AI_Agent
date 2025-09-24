@@ -1,0 +1,62 @@
+syntax = "v1"
+
+info(
+    title: "对话服务API"
+    desc: "对话管理、消息处理"
+    author: "backend team"
+    version: "1.0"
+)
+
+import "chat_types.api"
+
+// 需要认证的接口
+@server(
+    jwt: Auth
+    group: chat
+    middleware: UserAuthMiddleware
+)
+service chat-api {
+    @doc "发送消息"
+    @handler sendMessage
+    post /api/chat/message (SendMessageRequest) returns (SendMessageResponse)
+    
+    @doc "创建新对话"
+    @handler createConversation
+    post /api/chat/conversation (CreateConversationRequest) returns (CreateConversationResponse)
+    
+    @doc "获取对话详情"
+    @handler getConversation
+    get /api/chat/conversation/:id returns (ConversationResponse)
+    
+    @doc "获取对话列表"
+    @handler getConversationList
+    get /api/chat/conversations (ConversationListRequest) returns (ConversationListResponse)
+    
+    @doc "获取对话消息历史"
+    @handler getMessages
+    get /api/chat/conversation/:id/messages (MessageListRequest) returns (MessageListResponse)
+    
+    @doc "删除对话"
+    @handler deleteConversation
+    delete /api/chat/conversation/:id returns (BaseResponse)
+    
+    @doc "清空对话消息"
+    @handler clearMessages
+    delete /api/chat/conversation/:id/messages returns (BaseResponse)
+    
+    @doc "更新对话标题"
+    @handler updateConversationTitle
+    put /api/chat/conversation/:id/title (UpdateTitleRequest) returns (BaseResponse)
+    
+    @doc "搜索对话"
+    @handler searchConversations
+    get /api/chat/search (SearchConversationRequest) returns (ConversationListResponse)
+    
+    @doc "导出对话记录"
+    @handler exportConversation
+    get /api/chat/conversation/:id/export returns (ExportResponse)
+    
+    @doc "批量删除对话"
+    @handler batchDeleteConversations
+    post /api/chat/conversations/batch-delete (BatchDeleteRequest) returns (BaseResponse)
+} 
