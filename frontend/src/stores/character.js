@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
+import { characterApi } from '../services'
 
 export const useCharacterStore = defineStore('character', {
   state: () => ({
-    // 预设角色列表
+    // 角色列表
     characters: [
       {
         id: 'harry-potter',
@@ -128,7 +129,11 @@ export const useCharacterStore = defineStore('character', {
     currentCharacter: null,
     favorites: [],
     searchQuery: '',
-    selectedTags: []
+    selectedTags: [],
+    loading: false,
+    error: null,
+    categories: [],
+    tags: []
   }),
 
   getters: {
@@ -174,9 +179,100 @@ export const useCharacterStore = defineStore('character', {
   },
 
   actions: {
+    // 从API加载角色列表
+    async loadCharacters(params = {}) {
+      try {
+        this.loading = true
+        this.error = null
+        const response = await characterApi.getCharacterList(params)
+        if (response.data && response.data.characters) {
+          this.characters = response.data.characters
+        }
+      } catch (error) {
+        this.error = error.message
+        console.error('加载角色列表失败:', error)
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // 搜索角色
+    async searchCharacters(keyword) {
+      try {
+        this.loading = true
+        this.error = null
+        const response = await characterApi.searchCharacters({ keyword })
+        if (response.data && response.data.characters) {
+          this.characters = response.data.characters
+        }
+      } catch (error) {
+        this.error = error.message
+        console.error('搜索角色失败:', error)
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // 获取推荐角色
+    async loadRecommendedCharacters() {
+      try {
+        this.loading = true
+        const response = await characterApi.getRecommendedCharacters()
+        if (response.data && response.data.characters) {
+          this.characters = response.data.characters
+        }
+      } catch (error) {
+        this.error = error.message
+        console.error('加载推荐角色失败:', error)
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // 获取角色分类
+    async loadCategories() {
+      try {
+        const response = await characterApi.getCharacterCategories()
+        if (response.data) {
+          this.categories = response.data.categories || []
+        }
+      } catch (error) {
+        console.error('加载角色分类失败:', error)
+      }
+    },
+
+    // 获取角色标签
+    async loadTags() {
+      try {
+        const response = await characterApi.getCharacterTags()
+        if (response.data) {
+          this.tags = response.data.tags || []
+        }
+      } catch (error) {
+        console.error('加载角色标签失败:', error)
+      }
+    },
+
     // 选择角色
-    selectCharacter(characterId) {
-      const character = this.characters.find(c => c.id === characterId)
+    async selectCharacter(characterId) {
+      // 先从本地查找
+      let character = this.characters.find(c => c.id === characterId)
+      
+      // 如果本地没有，从API获取详情
+      if (!character) {
+        try {
+          const response = await characterApi.getCharacterDetail(characterId)
+          if (response.data) {
+            character = response.data.character
+            // 添加到本地列表
+            this.characters.push(character)
+          }
+        } catch (error) {
+          console.error('获取角色详情失败:', error)
+          return
+        }
+      }
+      
       if (character) {
         this.currentCharacter = character
       }
@@ -193,36 +289,90 @@ export const useCharacterStore = defineStore('character', {
     },
 
     // 添加/移除收藏
-    toggleFavorite(characterId) {
-      const index = this.favorites.indexOf(characterId)
-      if (index > -1) {
-        this.favorites.splice(index, 1)
-      } else {
-        this.favorites.push(characterId)
+    async toggleFavorite(characterId) {
+      try {
+        await characterApi.toggleFavorite(characterId)
+        
+        const index = this.favorites.indexOf(characterId)
+        if (index > -1) {
+          this.favorites.splice(index, 1)
+        } else {
+          this.favorites.push(characterId)
+        }
+      } catch (error) {
+        console.error('收藏操作失败:', error)
+        throw error
+      }
+    },
+
+    // 加载我的收藏
+    async loadMyFavorites() {
+      try {
+        const response = await characterApi.getMyFavorites()
+        if (response.data && response.data.characters) {
+          this.favorites = response.data.characters.map(c => c.id)
+        }
+      } catch (error) {
+        console.error('加载收藏列表失败:', error)
       }
     },
 
     // 更新角色设定
-    updateCharacterPrompt(characterId, prompt) {
-      const character = this.characters.find(c => c.id === characterId)
-      if (character) {
-        character.prompt = prompt
+    async updateCharacterPrompt(characterId, prompt) {
+      try {
+        await characterApi.updatePrompt(characterId, prompt)
+        
+        const character = this.characters.find(c => c.id === characterId)
+        if (character) {
+          character.prompt = prompt
+        }
+      } catch (error) {
+        console.error('更新角色设定失败:', error)
+        throw error
       }
     },
 
     // 更新角色性格
-    updateCharacterPersonality(characterId, personality) {
-      const character = this.characters.find(c => c.id === characterId)
-      if (character) {
-        character.personality = { ...character.personality, ...personality }
+    async updateCharacterPersonality(characterId, personality) {
+      try {
+        await characterApi.updatePersonality(characterId, personality)
+        
+        const character = this.characters.find(c => c.id === characterId)
+        if (character) {
+          character.personality = { ...character.personality, ...personality }
+        }
+      } catch (error) {
+        console.error('更新角色性格失败:', error)
+        throw error
       }
     },
 
     // 更新语音设置
-    updateVoiceSettings(characterId, settings) {
-      const character = this.characters.find(c => c.id === characterId)
-      if (character) {
-        character.voiceSettings = { ...character.voiceSettings, ...settings }
+    async updateVoiceSettings(characterId, settings) {
+      try {
+        await characterApi.updateVoiceSettings(characterId, settings)
+        
+        const character = this.characters.find(c => c.id === characterId)
+        if (character) {
+          character.voiceSettings = { ...character.voiceSettings, ...settings }
+        }
+      } catch (error) {
+        console.error('更新语音设置失败:', error)
+        throw error
+      }
+    },
+
+    // 创建自定义角色
+    async createCharacter(characterData) {
+      try {
+        const response = await characterApi.createCharacter(characterData)
+        if (response.data && response.data.character) {
+          this.characters.push(response.data.character)
+          return response.data.character
+        }
+      } catch (error) {
+        console.error('创建角色失败:', error)
+        throw error
       }
     }
   }

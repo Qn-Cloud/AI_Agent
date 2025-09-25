@@ -107,11 +107,12 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCharacterStore } from '../stores/character'
 import { useChatStore } from '../stores/chat'
 import { Search, User, Star } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const characterStore = useCharacterStore()
@@ -151,14 +152,37 @@ const classicCharacters = computed(() => {
 })
 
 // 方法
-const handleSearch = (value) => {
-  characterStore.setSearchQuery(value)
+const handleSearch = async (value) => {
+  if (value.trim()) {
+    try {
+      await characterStore.searchCharacters(value)
+    } catch (error) {
+      ElMessage.error('搜索失败: ' + error.message)
+    }
+  } else {
+    // 清空搜索时重新加载推荐角色
+    loadRecommendedCharacters()
+  }
 }
 
-const startChat = (characterId) => {
-  characterStore.selectCharacter(characterId)
-  chatStore.startNewConversation(characterId)
-  router.push(`/chat/${characterId}`)
+const startChat = async (characterId) => {
+  try {
+    await characterStore.selectCharacter(characterId)
+    await chatStore.startNewConversation(characterId)
+    router.push(`/chat/${characterId}`)
+  } catch (error) {
+    ElMessage.error('启动聊天失败: ' + error.message)
+  }
+}
+
+// 加载推荐角色
+const loadRecommendedCharacters = async () => {
+  try {
+    await characterStore.loadRecommendedCharacters()
+  } catch (error) {
+    console.error('加载推荐角色失败:', error)
+    // 如果API失败，使用本地预设角色
+  }
 }
 
 const handleImageError = (event) => {
@@ -169,6 +193,12 @@ const handleImageError = (event) => {
   placeholder.innerHTML = '<el-icon><User /></el-icon>'
   event.target.parentNode.appendChild(placeholder)
 }
+
+// 生命周期
+onMounted(() => {
+  // 初始化时加载推荐角色
+  loadRecommendedCharacters()
+})
 </script>
 
 <style lang="scss" scoped>

@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { chatApi, aiApi, speechApi, VoiceRecorder, VoicePlayer } from '../services'
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -85,7 +86,12 @@ export const useChatStore = defineStore('chat', {
       rate: 1.0,
       pitch: 1.0,
       autoSpeak: true
-    }
+    },
+    // 语音控制器
+    voiceRecorder: null,
+    voicePlayer: null,
+    // 错误信息
+    error: null
   }),
 
   getters: {
@@ -127,49 +133,173 @@ export const useChatStore = defineStore('chat', {
   },
 
   actions: {
-    // 开始新对话
-    startNewConversation(characterId) {
-      const newConversation = {
-        id: `conv-${Date.now()}`,
-        characterId,
-        title: `新对话 ${new Date().toLocaleString()}`,
-        startTime: new Date(),
-        lastUpdate: new Date(),
-        messages: []
+    // 初始化语音控制器
+    initVoiceControllers() {
+      if (!this.voiceRecorder) {
+        this.voiceRecorder = new VoiceRecorder()
       }
-      this.conversations.push(newConversation)
-      this.currentConversation = newConversation
-      return newConversation
+      if (!this.voicePlayer) {
+        this.voicePlayer = new VoicePlayer()
+      }
+    },
+
+    // 开始新对话
+    async startNewConversation(characterId) {
+      try {
+        this.isLoading = true
+        this.error = null
+        
+        const response = await chatApi.createConversation({
+          characterId,
+          title: `新对话 ${new Date().toLocaleString()}`
+        })
+        
+        if (response.data) {
+          const newConversation = {
+            id: response.data.conversation_id,
+            characterId,
+            title: response.data.title,
+            startTime: new Date(response.data.created_at),
+            lastUpdate: new Date(response.data.updated_at),
+            messages: []
+          }
+          
+          this.conversations.unshift(newConversation)
+          this.currentConversation = newConversation
+          
+          return newConversation
+        }
+      } catch (error) {
+        this.error = error.message
+        console.error('创建对话失败:', error)
+        
+        // 如果API失败，创建本地对话
+        const localConversation = {
+          id: `local-conv-${Date.now()}`,
+          characterId,
+          title: `新对话 ${new Date().toLocaleString()}`,
+          startTime: new Date(),
+          lastUpdate: new Date(),
+          messages: [],
+          isLocal: true
+        }
+        
+        this.conversations.unshift(localConversation)
+        this.currentConversation = localConversation
+        return localConversation
+      } finally {
+        this.isLoading = false
+      }
     },
 
     // 选择现有对话
-    selectConversation(conversationId) {
-      const conversation = this.conversations.find(c => c.id === conversationId)
-      if (conversation) {
-        this.currentConversation = conversation
+    async selectConversation(conversationId) {
+      try {
+        // 先从本地查找
+        let conversation = this.conversations.find(c => c.id === conversationId)
+        
+        if (conversation) {
+          this.currentConversation = conversation
+          
+          // 如果消息为空，从API加载消息
+          if (conversation.messages.length === 0 && !conversation.isLocal) {
+            await this.loadMessages(conversationId)
+          }
+        } else {
+          // 从API获取对话详情
+          const response = await chatApi.getConversation(conversationId)
+          if (response.data) {
+            conversation = response.data.conversation
+            this.conversations.unshift(conversation)
+            this.currentConversation = conversation
+            await this.loadMessages(conversationId)
+          }
+        }
+      } catch (error) {
+        this.error = error.message
+        console.error('选择对话失败:', error)
+      }
+    },
+
+    // 加载对话消息
+    async loadMessages(conversationId) {
+      try {
+        const response = await chatApi.getMessages(conversationId)
+        if (response.data && response.data.messages) {
+          const conversation = this.conversations.find(c => c.id === conversationId)
+          if (conversation) {
+            conversation.messages = response.data.messages
+          }
+        }
+      } catch (error) {
+        console.error('加载消息失败:', error)
       }
     },
 
     // 发送消息
-    sendMessage(content, type = 'user') {
+    async sendMessage(content, type = 'user') {
       if (!this.currentConversation) return
 
-      const message = {
-        id: `msg-${Date.now()}`,
-        type,
-        content,
-        timestamp: new Date()
+      try {
+        this.isLoading = true
+        this.error = null
+
+        const userMessage = {
+          id: `msg-${Date.now()}`,
+          type,
+          content,
+          timestamp: new Date()
+        }
+
+        this.currentConversation.messages.push(userMessage)
+        this.currentConversation.lastUpdate = new Date()
+
+        // 如果是用户消息，发送到后端获取AI回复
+        if (type === 'user') {
+          await this.getAIReply(content)
+        }
+
+        return userMessage
+      } catch (error) {
+        this.error = error.message
+        console.error('发送消息失败:', error)
+      } finally {
+        this.isLoading = false
       }
+    },
 
-      this.currentConversation.messages.push(message)
-      this.currentConversation.lastUpdate = new Date()
+    // 获取AI回复
+    async getAIReply(userMessage) {
+      try {
+        const response = await chatApi.sendMessage({
+          conversationId: this.currentConversation.id,
+          characterId: this.currentConversation.characterId,
+          content: userMessage
+        })
 
-      // 如果是用户消息，模拟AI回复
-      if (type === 'user') {
-        this.simulateAIReply(content)
+        if (response.data) {
+          const aiMessage = {
+            id: response.data.message_id || `msg-${Date.now() + 1}`,
+            type: 'ai',
+            content: response.data.reply,
+            timestamp: new Date()
+          }
+
+          this.currentConversation.messages.push(aiMessage)
+          this.currentConversation.lastUpdate = new Date()
+
+          // 如果开启自动播放，则播放语音
+          if (this.voiceSettings.autoSpeak) {
+            await this.speakMessage(response.data.reply)
+          }
+
+          return aiMessage
+        }
+      } catch (error) {
+        console.error('获取AI回复失败:', error)
+        // 使用模拟回复作为降级方案
+        await this.simulateAIReply(userMessage)
       }
-
-      return message
     },
 
     // 模拟AI回复（使用假数据）
@@ -219,22 +349,52 @@ export const useChatStore = defineStore('chat', {
     },
 
     // 语音识别控制
-    startRecording() {
-      this.isRecording = true
-      this.transcript = ''
-      // 这里会调用实际的语音识别API
-      this.simulateVoiceRecognition()
-    },
-
-    stopRecording() {
-      this.isRecording = false
-      if (this.transcript.trim()) {
-        this.sendMessage(this.transcript)
+    async startRecording() {
+      try {
+        this.initVoiceControllers()
+        this.isRecording = true
         this.transcript = ''
+        this.error = null
+        
+        await this.voiceRecorder.startRecording()
+      } catch (error) {
+        this.isRecording = false
+        this.error = error.message
+        console.error('录音启动失败:', error)
+        throw error
       }
     },
 
-    // 模拟语音识别
+    async stopRecording() {
+      if (!this.isRecording || !this.voiceRecorder) return
+      
+      try {
+        this.isRecording = false
+        const audioBlob = await this.voiceRecorder.stopRecording()
+        
+        if (audioBlob) {
+          // 调用语音识别API
+          const response = await speechApi.speechToText(audioBlob, {
+            language: 'zh-CN'
+          })
+          
+          if (response.data && response.data.text) {
+            this.transcript = response.data.text
+            // 自动发送识别的文本
+            await this.sendMessage(this.transcript)
+            this.transcript = ''
+          }
+        }
+      } catch (error) {
+        this.error = error.message
+        console.error('语音识别失败:', error)
+        
+        // 使用模拟识别作为降级方案
+        this.simulateVoiceRecognition()
+      }
+    },
+
+    // 模拟语音识别（降级方案）
     simulateVoiceRecognition() {
       const mockPhrases = [
         '你好，很高兴见到你',
@@ -245,24 +405,101 @@ export const useChatStore = defineStore('chat', {
       ]
       
       setTimeout(() => {
-        if (this.isRecording) {
-          this.transcript = mockPhrases[Math.floor(Math.random() * mockPhrases.length)]
-        }
+        this.transcript = mockPhrases[Math.floor(Math.random() * mockPhrases.length)]
+        this.sendMessage(this.transcript)
+        this.transcript = ''
       }, 2000)
     },
 
     // 语音播放
-    speakMessage(text) {
-      this.isSpeaking = true
-      
-      // 这里会调用实际的TTS API
-      setTimeout(() => {
+    async speakMessage(text, characterId = null) {
+      try {
+        this.initVoiceControllers()
+        this.isSpeaking = true
+        this.error = null
+        
+        // 如果有角色ID，使用角色的语音设置
+        const voiceSettings = characterId ? 
+          this.getCharacterVoiceSettings(characterId) : 
+          this.voiceSettings
+        
+        // 调用TTS API
+        const response = await speechApi.textToSpeech({
+          text,
+          characterId,
+          voiceSettings: {
+            rate: voiceSettings.rate,
+            pitch: voiceSettings.pitch,
+            volume: voiceSettings.volume / 100
+          }
+        })
+        
+        if (response.data && response.data.audio_url) {
+          // 播放语音
+          await this.voicePlayer.play(response.data.audio_url, {
+            volume: voiceSettings.volume / 100,
+            onEnded: () => {
+              this.isSpeaking = false
+            },
+            onError: (error) => {
+              console.error('语音播放失败:', error)
+              this.isSpeaking = false
+            }
+          })
+        }
+      } catch (error) {
         this.isSpeaking = false
-      }, Math.max(1000, text.length * 50)) // 模拟播放时间
+        this.error = error.message
+        console.error('语音合成失败:', error)
+        
+        // 使用Web Speech API作为降级方案
+        this.speakWithWebAPI(text)
+      }
+    },
+
+    // 使用Web Speech API播放语音（降级方案）
+    speakWithWebAPI(text) {
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text)
+        utterance.lang = 'zh-CN'
+        utterance.rate = this.voiceSettings.rate
+        utterance.pitch = this.voiceSettings.pitch
+        utterance.volume = this.voiceSettings.volume / 100
+        
+        utterance.onend = () => {
+          this.isSpeaking = false
+        }
+        
+        utterance.onerror = () => {
+          this.isSpeaking = false
+        }
+        
+        speechSynthesis.speak(utterance)
+      } else {
+        // 如果都不支持，使用计时器模拟
+        setTimeout(() => {
+          this.isSpeaking = false
+        }, Math.max(1000, text.length * 50))
+      }
     },
 
     stopSpeaking() {
       this.isSpeaking = false
+      
+      if (this.voicePlayer) {
+        this.voicePlayer.stop()
+      }
+      
+      if ('speechSynthesis' in window) {
+        speechSynthesis.cancel()
+      }
+    },
+
+    // 获取角色的语音设置
+    getCharacterVoiceSettings(characterId) {
+      // 这里需要从character store获取角色的语音设置
+      // 暂时返回默认设置
+      return this.voiceSettings
     },
 
     // 更新语音设置

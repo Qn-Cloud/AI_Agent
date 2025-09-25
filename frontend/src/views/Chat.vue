@@ -211,17 +211,21 @@ const quickTips = computed(() => {
 })
 
 // 方法
-const initializeChat = (characterId) => {
-  characterStore.selectCharacter(characterId)
+const initializeChat = async (characterId) => {
+  await characterStore.selectCharacter(characterId)
   if (!currentConversation.value) {
-    chatStore.startNewConversation(characterId)
+    await chatStore.startNewConversation(characterId)
   }
 }
 
 // 监听器
-watch(() => route.params.characterId, (newId) => {
+watch(() => route.params.characterId, async (newId) => {
   if (newId) {
-    initializeChat(newId)
+    try {
+      await initializeChat(newId)
+    } catch (error) {
+      ElMessage.error('初始化聊天失败: ' + error.message)
+    }
   }
 }, { immediate: true })
 
@@ -239,15 +243,19 @@ const openSettings = () => {
   router.push('/settings')
 }
 
-const sendQuickMessage = (message) => {
+const sendQuickMessage = async (message) => {
   textInput.value = message
-  sendTextMessage()
+  await sendTextMessage()
 }
 
-const sendTextMessage = () => {
+const sendTextMessage = async () => {
   if (!textInput.value.trim()) return
-  chatStore.sendMessage(textInput.value.trim())
-  textInput.value = ''
+  try {
+    await chatStore.sendMessage(textInput.value.trim())
+    textInput.value = ''
+  } catch (error) {
+    ElMessage.error('发送消息失败: ' + error.message)
+  }
 }
 
 const handleEnterSend = (event) => {
@@ -255,15 +263,23 @@ const handleEnterSend = (event) => {
   sendTextMessage()
 }
 
-const startRecording = () => {
+const startRecording = async () => {
   if (isLoading.value) return
-  chatStore.startRecording()
-  ElMessage.info('开始录音，松开按钮发送')
+  try {
+    await chatStore.startRecording()
+    ElMessage.info('开始录音，松开按钮发送')
+  } catch (error) {
+    ElMessage.error('录音启动失败: ' + error.message)
+  }
 }
 
-const stopRecording = () => {
+const stopRecording = async () => {
   if (!isRecording.value) return
-  chatStore.stopRecording()
+  try {
+    await chatStore.stopRecording()
+  } catch (error) {
+    ElMessage.error('录音处理失败: ' + error.message)
+  }
 }
 
 const scrollToBottom = () => {
