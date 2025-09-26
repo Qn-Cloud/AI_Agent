@@ -19,7 +19,23 @@
     <!-- 为您推荐 -->
     <div class="section">
       <h2 class="section-title">为您推荐</h2>
-      <div class="character-grid">
+      
+      <!-- 加载状态 -->
+      <div v-if="characterStore.loading" class="character-grid">
+        <LoadingStates
+          v-for="i in 4"
+          :key="i"
+          type="skeleton-card"
+        />
+      </div>
+      
+      <!-- 错误状态 -->
+      <div v-else-if="characterStore.error" class="error-section">
+        <ErrorBoundary :error="characterStore.error" />
+      </div>
+      
+      <!-- 正常内容 -->
+      <div v-else class="character-grid">
         <div
           v-for="character in recommendedCharacters"
           :key="character.id"
@@ -113,6 +129,8 @@ import { useCharacterStore } from '../stores/character'
 import { useChatStore } from '../stores/chat'
 import { Search, User, Star } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import LoadingStates from '../components/LoadingStates.vue'
+import ErrorBoundary from '../components/ErrorBoundary.vue'
 
 const router = useRouter()
 const characterStore = useCharacterStore()

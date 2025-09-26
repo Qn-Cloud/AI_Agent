@@ -62,6 +62,11 @@
           </div>
         </div>
 
+        <!-- 加载状态 -->
+        <div v-else-if="isLoading && currentMessages.length === 0" class="loading-messages">
+          <LoadingStates type="skeleton-messages" :count="3" />
+        </div>
+
         <!-- 消息列表 -->
         <div v-else class="messages-list">
           <div
@@ -172,6 +177,7 @@ import { useCharacterStore } from '../stores/character'
 import { useChatStore } from '../stores/chat'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Setting, User, ChatDotRound, Microphone, ArrowRight } from '@element-plus/icons-vue'
+import LoadingStates from '../components/LoadingStates.vue'
 
 const route = useRoute()
 const router = useRouter()

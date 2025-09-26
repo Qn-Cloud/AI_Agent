@@ -79,6 +79,7 @@ import { useRouter } from 'vue-router'
 import { useCharacterStore } from '../stores/character'
 import { useChatStore } from '../stores/chat'
 import { ChatDotRound, Setting } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const props = defineProps({
   character: {
@@ -99,19 +100,31 @@ const selectCharacter = () => {
   characterStore.selectCharacter(props.character.id)
 }
 
-const toggleFavorite = () => {
-  characterStore.toggleFavorite(props.character.id)
+const toggleFavorite = async () => {
+  try {
+    await characterStore.toggleFavorite(props.character.id)
+  } catch (error) {
+    ElMessage.error('收藏操作失败: ' + error.message)
+  }
 }
 
-const startChat = () => {
-  characterStore.selectCharacter(props.character.id)
-  chatStore.startNewConversation(props.character.id)
-  router.push(`/chat/${props.character.id}`)
+const startChat = async () => {
+  try {
+    await characterStore.selectCharacter(props.character.id)
+    await chatStore.startNewConversation(props.character.id)
+    router.push(`/chat/${props.character.id}`)
+  } catch (error) {
+    ElMessage.error('启动对话失败: ' + error.message)
+  }
 }
 
-const openSettings = () => {
-  characterStore.selectCharacter(props.character.id)
-  router.push('/settings')
+const openSettings = async () => {
+  try {
+    await characterStore.selectCharacter(props.character.id)
+    router.push('/settings')
+  } catch (error) {
+    ElMessage.error('打开设置失败: ' + error.message)
+  }
 }
 
 const getTagType = (tag) => {
