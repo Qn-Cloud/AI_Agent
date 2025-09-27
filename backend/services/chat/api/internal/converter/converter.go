@@ -22,31 +22,12 @@ func (c *ChatConverter) ToMessage(message *model.Message) *types.Message {
 		return nil
 	}
 
-	userID := int64(0)
-	if message.UserID != nil {
-		userID = *message.UserID
-	}
-
-	characterID := int64(0)
-	if message.CharacterID != nil {
-		characterID = *message.CharacterID
-	}
-
-	audioFileID := int64(0)
-	if message.AudioFileID != nil {
-		audioFileID = *message.AudioFileID
-	}
-
 	return &types.Message{
 		ID:             message.ID,
 		ConversationID: message.ConversationID,
-		UserID:         userID,
-		CharacterID:    characterID,
 		Type:           message.Type,
 		Content:        message.Content,
-		AudioFileID:    audioFileID,
-		Timestamp:      message.CreatedAt.Unix(),
-		CreatedAt:      message.CreatedAt.Format("2006-01-02 15:04:05"),
+		Timestamp:      message.CreatedAt.Format("2006-01-02 15:04:05"),
 	}
 }
 
@@ -73,13 +54,14 @@ func (c *ChatConverter) ToConversation(conversation *model.Conversation) *types.
 	}
 
 	return &types.Conversation{
-		ID:          conversation.ID,
-		UserID:      userID,
-		CharacterID: conversation.CharacterID,
-		Title:       conversation.Title,
-		Status:      conversation.Status,
-		CreatedAt:   conversation.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:   conversation.UpdatedAt.Format("2006-01-02 15:04:05"),
+		ID:              conversation.ID,
+		UserID:          userID,
+		CharacterID:     conversation.CharacterID,
+		Title:           conversation.Title,
+		StartTime:       conversation.CreatedAt.Format("2006-01-02 15:04:05"),
+		LastMessageTime: conversation.UpdatedAt.Format("2006-01-02 15:04:05"),
+		MessageCount:    0, // 需要单独计算
+		Status:          int(conversation.Status),
 	}
 }
 
@@ -94,21 +76,6 @@ func (c *ChatConverter) ToConversationList(conversations []model.Conversation) [
 	return result
 }
 
-// BuildPagination 构建分页信息
-func (c *ChatConverter) BuildPagination(page, pageSize int, total int64) *types.Pagination {
-	totalPage := int(total) / pageSize
-	if int(total)%pageSize > 0 {
-		totalPage++
-	}
-
-	return &types.Pagination{
-		TotalCount: int(total),
-		TotalPage:  totalPage,
-		Page:       page,
-		PageSize:   pageSize,
-	}
-}
-
 // BuildSendMessageResponse 构建发送消息响应
 func (c *ChatConverter) BuildSendMessageResponse(message *model.Message) *types.SendMessageResponse {
 	if message == nil {
@@ -119,9 +86,10 @@ func (c *ChatConverter) BuildSendMessageResponse(message *model.Message) *types.
 	}
 
 	return &types.SendMessageResponse{
-		Code:    0,
-		Msg:     "发送成功",
-		Message: *c.ToMessage(message),
+		Code:        0,
+		Msg:         "发送成功",
+		UserMessage: *c.ToMessage(message),
+		// AIMessage 需要AI回复后填充
 	}
 }
 
@@ -164,14 +132,15 @@ func (c *ChatConverter) BuildConversationListResponse(
 	page, pageSize int,
 ) *types.ConversationListResponse {
 	conversationList := c.ToConversationList(conversations)
-	pagination := c.BuildPagination(page, pageSize, total)
+	hasMore := int64(page*pageSize) < total
 
 	return &types.ConversationListResponse{
-		Code:          0,
-		Msg:           "获取成功",
-		Total:         total,
-		Page:          pagination,
-		Conversations: conversationList,
+		Code:    0,
+		Msg:     "获取成功",
+		List:    conversationList,
+		Total:   total,
+		Page:    page,
+		HasMore: hasMore,
 	}
 }
 
@@ -182,14 +151,15 @@ func (c *ChatConverter) BuildMessageListResponse(
 	page, pageSize int,
 ) *types.MessageListResponse {
 	messageList := c.ToMessageList(messages)
-	pagination := c.BuildPagination(page, pageSize, total)
+	hasMore := int64(page*pageSize) < total
 
 	return &types.MessageListResponse{
 		Code:     0,
 		Msg:      "获取成功",
-		Total:    total,
-		Page:     pagination,
 		Messages: messageList,
+		Total:    total,
+		Page:     page,
+		HasMore:  hasMore,
 	}
 }
 
@@ -234,8 +204,9 @@ func (c *ChatConverter) BuildExportResponse(conversation *model.Conversation, me
 	return &types.ExportResponse{
 		Code:     0,
 		Msg:      "导出成功",
+		Data:     content.String(),
+		Format:   "txt",
 		Filename: fmt.Sprintf("conversation_%d_%s.txt", conversation.ID, time.Now().Format("20060102_150405")),
-		Content:  content.String(),
 	}
 }
 
@@ -243,22 +214,14 @@ func (c *ChatConverter) BuildExportResponse(conversation *model.Conversation, me
 func (c *ChatConverter) FromSendMessageRequest(req *types.SendMessageRequest) *model.Message {
 	message := &model.Message{
 		ConversationID: req.ConversationID,
-		Type:           req.Type,
+		Type:           "user", // 发送的消息都是用户消息
 		Content:        req.Content,
 		Status:         1, // 正常状态
 		CreatedAt:      time.Now(),
 	}
 
-	if req.UserID > 0 {
-		message.UserID = &req.UserID
-	}
-
 	if req.CharacterID > 0 {
 		message.CharacterID = &req.CharacterID
-	}
-
-	if req.AudioFileID > 0 {
-		message.AudioFileID = &req.AudioFileID
 	}
 
 	return message
@@ -266,17 +229,38 @@ func (c *ChatConverter) FromSendMessageRequest(req *types.SendMessageRequest) *m
 
 // FromCreateConversationRequest 从创建对话请求创建对话模型
 func (c *ChatConverter) FromCreateConversationRequest(req *types.CreateConversationRequest) *model.Conversation {
+	title := req.Title
+	if title == "" {
+		title = "新对话"
+	}
+
 	conversation := &model.Conversation{
 		CharacterID: req.CharacterID,
-		Title:       req.Title,
+		Title:       title,
 		Status:      1, // 正常状态
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 
-	if req.UserID > 0 {
-		conversation.UserID = &req.UserID
+	return conversation
+}
+
+// ToConversationHistoryItem 转换为对话历史项
+func (c *ChatConverter) ToConversationHistoryItem(conversation *model.Conversation, messageCount int64, lastMessage *model.Message, duration int64) *types.ConversationHistoryItem {
+	if conversation == nil {
+		return nil
 	}
 
-	return conversation
+	item := &types.ConversationHistoryItem{
+		ConversationID:       conversation.ID,
+		MessageCount:         messageCount,
+		ConversationDuration: duration,
+		LastMessageTime:      conversation.UpdatedAt.Format("2006-01-02 15:04:05"),
+	}
+
+	if lastMessage != nil {
+		item.LastMessageContent = lastMessage.Content
+	}
+
+	return item
 }

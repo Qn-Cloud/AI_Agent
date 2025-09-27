@@ -24,6 +24,7 @@ var (
 	searchConversationsLogic      *SearchConversationsLogic
 	sendMessageLogic              *SendMessageLogic
 	updateConversationTitleLogic  *UpdateConversationTitleLogic
+	getConversationHistoryLogic   *GetConversationHistoryLogic
 )
 
 func init() {
@@ -75,4 +76,15 @@ func TestExportConversationLogic(t *testing.T) {
 		t.Fatalf("ExportConversation failed: %v", err)
 	}
 	t.Logf("ExportConversation resp: %v\n", resp)
+}
+
+func TestGetConversationHistoryLogic(t *testing.T) {
+	getConversationHistoryLogic = NewGetConversationHistoryLogic(ctx, svcCtx)
+	resp, err := getConversationHistoryLogic.GetConversationHistory(&types.GetConversationHistoryRequest{
+		UserID: 1,
+	})
+	if err != nil {
+		t.Fatalf("GetConversationHistory failed: %v", err)
+	}
+	t.Logf("GetConversationHistory resp: %v\n", resp)
 }
