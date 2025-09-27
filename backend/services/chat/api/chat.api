@@ -9,11 +9,9 @@ info(
 
 import "chat_types.api"
 
-// 需要认证的接口
+// 公开接口，暂时不需要认证
 @server(
-    jwt: Auth
     group: chat
-    middleware: UserAuthMiddleware
 )
 service chat-api {
     @doc "发送消息"

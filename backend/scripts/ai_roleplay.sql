@@ -3,6 +3,7 @@
 -- 字符集: utf8mb4
 -- 排序规则: utf8mb4_unicode_ci
 
+
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -282,30 +283,7 @@ ALTER TABLE `characters` ADD FULLTEXT KEY `ft_name_desc` (`name`, `description`)
 ALTER TABLE `conversations` ADD FULLTEXT KEY `ft_title` (`title`);
 ALTER TABLE `messages` ADD FULLTEXT KEY `ft_content` (`content`);
 
--- ====================================
--- 创建视图简化查询
--- ====================================
 
--- 角色详情视图
-CREATE VIEW `v_character_details` AS
-SELECT 
-    c.*,
-    cat.name as category_name,
-    COALESCE(u.username, 'system') as creator_name
-FROM `characters` c
-LEFT JOIN `character_categories` cat ON c.category_id = cat.id
-LEFT JOIN `users` u ON c.creator_id = u.id;
 
--- 对话列表视图
-CREATE VIEW `v_conversation_list` AS
-SELECT 
-    conv.*,
-    char.name as character_name,
-    char.avatar as character_avatar,
-    COALESCE(u.username, 'anonymous') as user_name
-FROM `conversations` conv
-LEFT JOIN `characters` char ON conv.character_id = char.id
-LEFT JOIN `users` u ON conv.user_id = u.id
-WHERE conv.status = 1;
 
-COMMIT;
+show create table characters;

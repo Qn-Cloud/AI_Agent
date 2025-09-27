@@ -1,0 +1,32 @@
+Name: character-api
+Host: 0.0.0.0
+Port: 8888
+
+
+Timeout: 180000
+
+Mysql:
+  Username: root
+  Password: "000000"
+  Host: 192.168.23.188
+  Port: "3306"
+  Database: "ai_roleplay"
+  Charset: "utf8mb4"
+  ParseTime: "true"
+  Loc: "Local"
+  SingularTable: true
+  PrepareStmt: true
+  SkipDefaultTransaction: true
+  ConnMaxLifetime: 0
+  MaxIdleConn: 500
+  ConnMaxIdleTime: 3
+  MaxOpenConn: 1000
+  IgnoreRecordNotFoundError: false
+
+Redis:
+  Addr: 192.168.23.188:6379
+  Pwd: ""
+  Db: 0
+  PoolSize: 200
+  MinIdleConns: 50
+  MaxRetries: 2

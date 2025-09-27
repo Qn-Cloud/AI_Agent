@@ -1,0 +1,138 @@
+syntax = "v1"
+
+info(
+    title: "对话服务数据类型"
+    desc: "对话管理相关的数据结构定义"
+    author: "backend team"
+    version: "1.0"
+)
+
+// 基础响应结构
+type BaseResponse {
+    Code int    `json:"code"`
+    Msg  string `json:"msg"`
+}
+
+// 消息结构
+type Message {
+    ID            int64  `json:"id"`
+    ConversationID int64 `json:"conversation_id"`
+    Type          string `json:"type"`          // user/ai
+    Content       string `json:"content"`
+    AudioURL      string `json:"audio_url,omitempty"`
+    AudioDuration int    `json:"audio_duration,omitempty"`
+    Timestamp     string `json:"timestamp"`
+    Metadata      string `json:"metadata,omitempty"`  // JSON字符串，存储额外信息
+}
+
+// 对话结构
+type Conversation {
+    ID              int64     `json:"id"`
+    UserID          int64     `json:"user_id,omitempty"`
+    CharacterID     int64     `json:"character_id"`
+    Title           string    `json:"title"`
+    StartTime       string    `json:"start_time"`
+    LastMessageTime string    `json:"last_message_time"`
+    MessageCount    int       `json:"message_count"`
+    Status          int       `json:"status"`       // 1:正常 2:已删除
+    Settings        string    `json:"settings,omitempty"`  // JSON字符串，存储对话设置
+    Messages        []Message `json:"messages,omitempty"`
+}
+
+// 发送消息请求
+type SendMessageRequest {
+    ConversationID int64  `json:"conversation_id"`
+    CharacterID    int64  `json:"character_id"`
+    Content        string `json:"content"`
+    Type           string `json:"type,optional,default=text"`  // text/audio
+    AudioData      string `json:"audio_data,omitempty"`        // base64编码的音频数据
+}
+
+// 发送消息响应
+type SendMessageResponse {
+    Code        int     `json:"code"`
+    Msg         string  `json:"msg"`
+    UserMessage Message `json:"user_message"`
+    AIMessage   Message `json:"ai_message"`
+}
+
+// 创建对话请求
+type CreateConversationRequest {
+    CharacterID int64  `json:"character_id"`
+    Title       string `json:"title,optional,default=新对话"`
+}
+
+// 创建对话响应
+type CreateConversationResponse {
+    Code         int          `json:"code"`
+    Msg          string       `json:"msg"`
+    Conversation Conversation `json:"conversation"`
+}
+
+// 对话详情响应
+type ConversationResponse {
+    Code         int          `json:"code"`
+    Msg          string       `json:"msg"`
+    Conversation Conversation `json:"conversation"`
+}
+
+// 对话列表请求
+type ConversationListRequest {
+    Page        int   `form:"page,optional,default=1"`
+    PageSize    int   `form:"page_size,optional,default=20"`
+    CharacterID int64 `form:"character_id,omitempty"`
+    Status      int   `form:"status,optional,default=1"`
+}
+
+// 对话列表响应
+type ConversationListResponse {
+    Code    int            `json:"code"`
+    Msg     string         `json:"msg"`
+    List    []Conversation `json:"list"`
+    Total   int64          `json:"total"`
+    Page    int            `json:"page"`
+    HasMore bool           `json:"has_more"`
+}
+
+// 消息列表请求
+type MessageListRequest {
+    Page     int   `form:"page,optional,default=1"`
+    PageSize int   `form:"page_size,optional,default=50"`
+    BeforeID int64 `form:"before_id,omitempty"`  // 用于分页，获取此ID之前的消息
+}
+
+// 消息列表响应
+type MessageListResponse {
+    Code     int       `json:"code"`
+    Msg      string    `json:"msg"`
+    Messages []Message `json:"messages"`
+    Total    int64     `json:"total"`
+    Page     int       `json:"page"`
+    HasMore  bool      `json:"has_more"`
+}
+
+// 更新标题请求
+type UpdateTitleRequest {
+    Title string `json:"title"`
+}
+
+// 搜索对话请求
+type SearchConversationRequest {
+    Keyword  string `form:"keyword"`
+    Page     int    `form:"page,optional,default=1"`
+    PageSize int    `form:"page_size,optional,default=20"`
+}
+
+// 导出对话响应
+type ExportResponse {
+    Code     int    `json:"code"`
+    Msg      string `json:"msg"`
+    Data     string `json:"data"`     // 导出的数据内容
+    Format   string `json:"format"`   // 导出格式 json/txt/csv
+    Filename string `json:"filename"` // 建议的文件名
+}
+
+// 批量删除请求
+type BatchDeleteRequest {
+    ConversationIDs []int64 `json:"conversation_ids"`
+} 

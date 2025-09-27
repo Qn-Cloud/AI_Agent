@@ -1,88 +1,87 @@
 syntax = "v1"
 
-info(
-    title: "角色服务API"
-    desc: "角色管理、搜索、自定义"
-    author: "backend team"
-    version: "1.0"
+info (
+	title:   "角色服务API"
+	desc:    "角色管理、搜索、自定义"
+	author:  "backend team"
+	version: "1.0"
 )
 
 import "character_types.api"
 
-// 需要认证的接口
-@server(
-    jwt: Auth
-    group: character
-    middleware: UserAuthMiddleware
+// 公开接口（无需认证）
+@server (
+	group: public
 )
 service character-api {
-    @doc "创建自定义角色"
-    @handler createCharacter
-    post /api/character (CreateCharacterRequest) returns (CreateCharacterResponse)
-    
-    @doc "更新角色信息"
-    @handler updateCharacter
-    put /api/character/:id (UpdateCharacterRequest) returns (BaseResponse)
-    
-    @doc "删除角色"
-    @handler deleteCharacter
-    delete /api/character/:id returns (BaseResponse)
-    
-    @doc "收藏/取消收藏角色"
-    @handler toggleFavorite
-    post /api/character/:id/favorite returns (BaseResponse)
-    
-    @doc "获取我的收藏角色"
-    @handler getMyFavorites
-    get /api/character/favorites (PaginationRequest) returns (CharacterListResponse)
-    
-    @doc "获取我创建的角色"
-    @handler getMyCharacters
-    get /api/character/my (PaginationRequest) returns (CharacterListResponse)
-    
-    @doc "更新角色提示词"
-    @handler updatePrompt
-    put /api/character/:id/prompt (UpdatePromptRequest) returns (BaseResponse)
-    
-    @doc "更新角色性格设置"
-    @handler updatePersonality
-    put /api/character/:id/personality (UpdatePersonalityRequest) returns (BaseResponse)
-    
-    @doc "更新语音设置"
-    @handler updateVoiceSettings
-    put /api/character/:id/voice (UpdateVoiceSettingsRequest) returns (BaseResponse)
+	@doc "获取角色列表"
+	@handler getCharacterList
+	get /api/character/list (CharacterListRequest) returns (CharacterListResponse)
+
+	@doc "搜索角色"
+	@handler searchCharacters
+	get /api/character/search (SearchCharacterRequest) returns (SearchCharacterResponse)
+
+	@doc "获取角色详情"
+	@handler getCharacterDetail
+	get /api/character/:id (CharacterDetailRequest) returns (CharacterDetailResponse)
+
+	@doc "获取推荐角色"
+	@handler getRecommendedCharacters
+	get /api/character/recommended (RecommendedCharacterRequest) returns (RecommendedCharacterResponse)
+
+	@doc "获取角色分类"
+	@handler getCharacterCategories
+	get /api/character/categories returns (CharacterCategoriesResponse)
+
+	@doc "获取热门角色"
+	@handler getPopularCharacters
+	get /api/character/popular (PopularCharacterRequest) returns (PopularCharacterResponse)
+
+	@doc "获取角色标签"
+	@handler getCharacterTags
+	get /api/character/tags returns (CharacterTagsResponse)
 }
 
-// 公开接口（无需认证）
-@server(
-    group: public
+// 需要认证的接口
+@server (
+	group: character
 )
 service character-api {
-    @doc "获取角色列表"
-    @handler getCharacterList
-    get /api/character/list (CharacterListRequest) returns (CharacterListResponse)
-    
-    @doc "搜索角色"
-    @handler searchCharacters
-    get /api/character/search (SearchCharacterRequest) returns (CharacterListResponse)
-    
-    @doc "获取角色详情"
-    @handler getCharacterDetail
-    get /api/character/:id returns (CharacterDetailResponse)
-    
-    @doc "获取推荐角色"
-    @handler getRecommendedCharacters
-    get /api/character/recommended (RecommendedRequest) returns (CharacterListResponse)
-    
-    @doc "获取角色分类"
-    @handler getCharacterCategories
-    get /api/character/categories returns (CategoriesResponse)
-    
-    @doc "获取热门角色"
-    @handler getPopularCharacters
-    get /api/character/popular (PaginationRequest) returns (CharacterListResponse)
-    
-    @doc "获取角色标签"
-    @handler getCharacterTags
-    get /api/character/tags returns (TagsResponse)
-} 
+	@doc "创建自定义角色"
+	@handler createCharacter
+	post /api/character (CreateCharacterRequest) returns (CreateCharacterResponse)
+
+	@doc "更新角色信息"
+	@handler updateCharacter
+	put /api/character/:id (UpdateCharacterRequest) returns (UpdateCharacterResponse)
+
+	@doc "删除角色"
+	@handler deleteCharacter
+	delete /api/character/:id (DeleteCharacterRequest) returns (DeleteCharacterResponse)
+
+	@doc "收藏/取消收藏角色"
+	@handler toggleFavorite
+	post /api/character/:id/favorite (ToggleFavoriteRequest) returns (ToggleFavoriteResponse)
+
+	@doc "获取我的收藏角色"
+	@handler getMyFavorites
+	get /api/character/favorites (FavoriteCharacterRequest) returns (FavoriteCharacterResponse)
+
+	@doc "获取我创建的角色"
+	@handler getMyCharacters
+	get /api/character/my (MyCharacterRequest) returns (MyCharacterResponse)
+
+	@doc "更新角色提示词"
+	@handler updatePrompt
+	put /api/character/:id/prompt (UpdatePromptRequest) returns (UpdatePromptResponse)
+
+	@doc "更新角色性格设置"
+	@handler updatePersonality
+	put /api/character/:id/personality (UpdatePersonalityRequest) returns (UpdatePersonalityResponse)
+
+	@doc "更新语音设置"
+	@handler updateVoiceSettings
+	put /api/character/:id/voice (UpdateVoiceSettingsRequest) returns (UpdateVoiceSettingsResponse)
+}
+
