@@ -3,6 +3,7 @@ package converter
 import (
 	"ai-roleplay/services/chat/api/internal/types"
 	"ai-roleplay/services/chat/model"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -182,31 +183,173 @@ func (c *ChatConverter) BuildExportResponse(conversation *model.Conversation, me
 
 	// 构建导出内容
 	var content strings.Builder
+
+	// 文件头信息
+	content.WriteString("=====================================\n")
+	content.WriteString("        AI 角色扮演对话记录\n")
+	content.WriteString("=====================================\n\n")
+
+	// 对话基本信息
+	content.WriteString("对话信息:\n")
+	content.WriteString("--------\n")
+	content.WriteString(fmt.Sprintf("对话ID: %d\n", conversation.ID))
 	content.WriteString(fmt.Sprintf("对话标题: %s\n", conversation.Title))
-	content.WriteString(fmt.Sprintf("创建时间: %s\n", conversation.CreatedAt.Format("2006-01-02 15:04:05")))
-	content.WriteString(fmt.Sprintf("更新时间: %s\n", conversation.UpdatedAt.Format("2006-01-02 15:04:05")))
-	content.WriteString("=" + strings.Repeat("=", 50) + "\n\n")
+	content.WriteString(fmt.Sprintf("角色ID: %d\n", conversation.CharacterID))
+
+	if conversation.UserID != nil {
+		content.WriteString(fmt.Sprintf("用户ID: %d\n", *conversation.UserID))
+	}
+
+	content.WriteString(fmt.Sprintf("创建时间: %s\n", conversation.CreatedAt.Format("2006年01月02日 15:04:05")))
+	content.WriteString(fmt.Sprintf("最后更新: %s\n", conversation.UpdatedAt.Format("2006年01月02日 15:04:05")))
+	content.WriteString(fmt.Sprintf("消息总数: %d条\n", len(messages)))
+
+	// 计算对话时长
+	duration := conversation.UpdatedAt.Sub(conversation.CreatedAt)
+	if duration.Hours() >= 24 {
+		content.WriteString(fmt.Sprintf("对话时长: %.1f天\n", duration.Hours()/24))
+	} else if duration.Hours() >= 1 {
+		content.WriteString(fmt.Sprintf("对话时长: %.1f小时\n", duration.Hours()))
+	} else {
+		content.WriteString(fmt.Sprintf("对话时长: %.0f分钟\n", duration.Minutes()))
+	}
+
+	// 统计信息
+	var totalTokens int32
+	var totalProcessingTime int32
+	userMessageCount := 0
+	aiMessageCount := 0
 
 	for _, message := range messages {
-		var sender string
 		if message.Type == "user" {
-			sender = "用户"
+			userMessageCount++
 		} else {
-			sender = "AI"
+			aiMessageCount++
+			totalTokens += message.TokenUsed
+			totalProcessingTime += message.ProcessingTime
 		}
-
-		content.WriteString(fmt.Sprintf("[%s] %s:\n%s\n\n",
-			message.CreatedAt.Format("15:04:05"),
-			sender,
-			message.Content))
 	}
+
+	content.WriteString(fmt.Sprintf("用户消息: %d条\n", userMessageCount))
+	content.WriteString(fmt.Sprintf("AI消息: %d条\n", aiMessageCount))
+	content.WriteString(fmt.Sprintf("总Token消耗: %d\n", totalTokens))
+	content.WriteString(fmt.Sprintf("总处理时间: %.2f秒\n", float64(totalProcessingTime)/1000))
+
+	if aiMessageCount > 0 {
+		avgTokens := float64(totalTokens) / float64(aiMessageCount)
+		avgProcessingTime := float64(totalProcessingTime) / float64(aiMessageCount)
+		content.WriteString(fmt.Sprintf("平均Token/消息: %.1f\n", avgTokens))
+		content.WriteString(fmt.Sprintf("平均处理时间: %.0f毫秒\n", avgProcessingTime))
+	}
+
+	content.WriteString("\n")
+
+	// 对话内容
+	content.WriteString("对话内容:\n")
+	content.WriteString("--------\n\n")
+
+	if len(messages) == 0 {
+		content.WriteString("暂无对话消息\n")
+	} else {
+		for i, message := range messages {
+			// 消息序号
+			content.WriteString(fmt.Sprintf("[%d] ", i+1))
+
+			// 发送者标识
+			var sender string
+			var senderIcon string
+			if message.Type == "user" {
+				sender = "用户"
+				senderIcon = "👤"
+			} else {
+				sender = "AI助手"
+				senderIcon = "🤖"
+			}
+
+			// 时间戳
+			timestamp := message.CreatedAt.Format("15:04:05")
+
+			// 消息头
+			content.WriteString(fmt.Sprintf("%s %s (%s)", senderIcon, sender, timestamp))
+
+			// AI消息的额外信息
+			if message.Type == "ai" {
+				if message.TokenUsed > 0 || message.ProcessingTime > 0 {
+					content.WriteString(" [")
+					if message.TokenUsed > 0 {
+						content.WriteString(fmt.Sprintf("Token: %d", message.TokenUsed))
+					}
+					if message.ProcessingTime > 0 {
+						if message.TokenUsed > 0 {
+							content.WriteString(", ")
+						}
+						content.WriteString(fmt.Sprintf("耗时: %dms", message.ProcessingTime))
+					}
+					content.WriteString("]")
+				}
+			}
+
+			content.WriteString("\n")
+
+			// 消息内容（处理多行文本）
+			messageLines := strings.Split(message.Content, "\n")
+			for _, line := range messageLines {
+				content.WriteString(fmt.Sprintf("    %s\n", line))
+			}
+
+			// 音频信息
+			if message.AudioID != nil {
+				content.WriteString(fmt.Sprintf("    🔊 语音消息 (音频ID: %d)\n", *message.AudioID))
+			}
+
+			// 元数据信息
+			if message.Metadata != nil {
+				metadata, err := c.GetMessageMetadata(&message)
+				if err == nil && len(metadata) > 0 {
+					content.WriteString("    📋 元数据: ")
+					for key, value := range metadata {
+						content.WriteString(fmt.Sprintf("%s=%v ", key, value))
+					}
+					content.WriteString("\n")
+				}
+			}
+
+			// 消息间分隔
+			if i < len(messages)-1 {
+				content.WriteString("\n")
+			}
+		}
+	}
+
+	// 文件尾部
+	content.WriteString("\n")
+	content.WriteString("=====================================\n")
+	content.WriteString(fmt.Sprintf("导出时间: %s\n", time.Now().Format("2006年01月02日 15:04:05")))
+	content.WriteString("由 AI 角色扮演系统生成\n")
+	content.WriteString("=====================================\n")
+
+	// 生成文件名
+	filename := fmt.Sprintf("对话记录_%s_%s.txt",
+		conversation.Title,
+		time.Now().Format("20060102_150405"))
+
+	// 清理文件名中的特殊字符
+	filename = strings.ReplaceAll(filename, "/", "_")
+	filename = strings.ReplaceAll(filename, "\\", "_")
+	filename = strings.ReplaceAll(filename, ":", "_")
+	filename = strings.ReplaceAll(filename, "*", "_")
+	filename = strings.ReplaceAll(filename, "?", "_")
+	filename = strings.ReplaceAll(filename, "\"", "_")
+	filename = strings.ReplaceAll(filename, "<", "_")
+	filename = strings.ReplaceAll(filename, ">", "_")
+	filename = strings.ReplaceAll(filename, "|", "_")
 
 	return &types.ExportResponse{
 		Code:     0,
 		Msg:      "导出成功",
 		Data:     content.String(),
 		Format:   "txt",
-		Filename: fmt.Sprintf("conversation_%d_%s.txt", conversation.ID, time.Now().Format("20060102_150405")),
+		Filename: filename,
 	}
 }
 
@@ -216,15 +359,59 @@ func (c *ChatConverter) FromSendMessageRequest(req *types.SendMessageRequest) *m
 		ConversationID: req.ConversationID,
 		Type:           "user", // 发送的消息都是用户消息
 		Content:        req.Content,
-		Status:         1, // 正常状态
+		TokenUsed:      0, // 用户消息不计算token
+		ProcessingTime: 0, // 用户消息无处理时间
 		CreatedAt:      time.Now(),
 	}
 
-	if req.CharacterID > 0 {
-		message.CharacterID = &req.CharacterID
-	}
+	// 如果有音频数据，可以在这里处理
+	// 注意：原来的 CharacterID 字段已经移除，根据新表结构不再存储
 
 	return message
+}
+
+// CreateAIMessage 创建AI回复消息
+func (c *ChatConverter) CreateAIMessage(conversationID int64, content string, tokenUsed int32, processingTime int32) *model.Message {
+	return &model.Message{
+		ConversationID: conversationID,
+		Type:           "ai",
+		Content:        content,
+		TokenUsed:      tokenUsed,
+		ProcessingTime: processingTime,
+		CreatedAt:      time.Now(),
+	}
+}
+
+// SetMessageMetadata 设置消息元数据
+func (c *ChatConverter) SetMessageMetadata(message *model.Message, metadata map[string]interface{}) error {
+	if metadata == nil {
+		return nil
+	}
+
+	metadataJSON, err := json.Marshal(metadata)
+	if err != nil {
+		return err
+	}
+
+	metadataStr := string(metadataJSON)
+	message.Metadata = &metadataStr
+
+	return nil
+}
+
+// GetMessageMetadata 获取消息元数据
+func (c *ChatConverter) GetMessageMetadata(message *model.Message) (map[string]interface{}, error) {
+	if message.Metadata == nil {
+		return nil, nil
+	}
+
+	var metadata map[string]interface{}
+	err := json.Unmarshal([]byte(*message.Metadata), &metadata)
+	if err != nil {
+		return nil, err
+	}
+
+	return metadata, nil
 }
 
 // FromCreateConversationRequest 从创建对话请求创建对话模型

@@ -1,11 +1,11 @@
 package chat
 
 import (
-	"context"
-
+	"ai-roleplay/services/chat/api/internal/converter"
 	"ai-roleplay/services/chat/api/internal/repo"
 	"ai-roleplay/services/chat/api/internal/svc"
 	"ai-roleplay/services/chat/api/internal/types"
+	"context"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -16,7 +16,6 @@ type ExportConversationLogic struct {
 	svcCtx *svc.ServiceContext
 }
 
-// 导出对话记录
 func NewExportConversationLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ExportConversationLogic {
 	return &ExportConversationLogic{
 		Logger: logx.WithContext(ctx),
@@ -30,24 +29,33 @@ func (l *ExportConversationLogic) ExportConversation(req *types.ConversationRequ
 	if req.ID <= 0 {
 		return &types.ExportResponse{
 			Code: 400,
-			Msg:  "ID不能为空",
+			Msg:  "对话ID无效",
 		}, nil
 	}
 
 	// 创建repo实例
 	chatRepo := repo.NewChatServiceRepo(l.ctx, l.svcCtx)
 
-	// 导出对话
-	if err := chatRepo.ExportConversation(req.ID); err != nil {
+	// 获取对话信息和消息记录
+	conversation, messages, err := chatRepo.ExportConversation(req.ID)
+	if err != nil {
 		l.Logger.Error("ExportConversation failed: ", err)
 		return &types.ExportResponse{
 			Code: 500,
-			Msg:  "导出对话失败",
+			Msg:  "获取对话数据失败",
 		}, nil
 	}
 
-	return &types.ExportResponse{
-		Code: 200,
-		Msg:  "导出对话成功",
-	}, nil
+	if conversation == nil {
+		return &types.ExportResponse{
+			Code: 404,
+			Msg:  "对话不存在",
+		}, nil
+	}
+
+	// 使用转换器生成导出内容
+	converter := converter.NewChatConverter()
+	resp = converter.BuildExportResponse(conversation, messages)
+
+	return resp, nil
 }

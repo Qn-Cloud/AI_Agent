@@ -27,6 +27,7 @@ type Conversation struct {
 
 type ConversationHistoryItem struct {
 	ConversationID       int64  `json:"conversation_id,omitempty"`
+	CharacterID          int64  `json:"character_id"`
 	MessageCount         int64  `json:"message_count"`
 	ConversationDuration int64  `json:"conversation_duration"`
 	LastMessageTime      string `json:"last_message_time`
@@ -141,6 +142,7 @@ type GetConversationHistoryRequest struct {
 	UserID    int64  `form:"user_id,omitempty"`
 	StartTime string `form:"start_time,omitempty"`
 	EndTime   string `form:"end_time,omitempty"`
+	SortBy    int    `form:"sort_by,omitempty"`
 }
 
 type GetConversationHistoryResponse struct {

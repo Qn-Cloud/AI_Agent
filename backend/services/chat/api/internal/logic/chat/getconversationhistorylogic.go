@@ -2,7 +2,9 @@ package chat
 
 import (
 	"context"
+	"sort"
 
+	common "ai-roleplay/common/utils"
 	"ai-roleplay/services/chat/api/internal/repo"
 	"ai-roleplay/services/chat/api/internal/svc"
 	"ai-roleplay/services/chat/api/internal/types"
@@ -41,6 +43,7 @@ func (l *GetConversationHistoryLogic) GetConversationHistory(req *types.GetConve
 	for _, conversation := range conversations {
 		item := types.ConversationHistoryItem{
 			ConversationID: conversation.ID,
+			CharacterID:    conversation.CharacterID,
 		}
 		messages, err := chatRepo.GetMessageByConversationID(conversation.ID)
 		if err != nil {
@@ -72,6 +75,23 @@ func (l *GetConversationHistoryLogic) GetConversationHistory(req *types.GetConve
 		lastConversationTime := conversations[len(conversations)-1].UpdatedAt
 		activeDays = int(lastConversationTime.Sub(firstConversationTime).Hours() / 24)
 	}
+
+	var switchFunc func(i, j int) bool
+	switch req.SortBy {
+	case common.SortByLastMessageCount:
+		switchFunc = func(i, j int) bool {
+			return result[i].MessageCount > result[j].MessageCount
+		}
+	case common.SortByLastMessageTime:
+		switchFunc = func(i, j int) bool {
+			return result[i].LastMessageTime < result[j].LastMessageTime
+		}
+	case common.SortByCharacter:
+		switchFunc = func(i, j int) bool {
+			return result[i].CharacterID > result[j].CharacterID
+		}
+	}
+	sort.Slice(result, switchFunc)
 
 	return &types.GetConversationHistoryResponse{
 		List:              result,
