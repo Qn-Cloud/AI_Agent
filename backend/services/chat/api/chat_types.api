@@ -156,6 +156,7 @@ type getConversationHistoryRequest {
     StartTime string `form:"start_time,omitempty"`
     EndTime string `form:"end_time,omitempty"`
     SortBy int `form:"sort_by,omitempty"`
+    CharacterID int `form:"character_id,omitempty"`
 }
 
 type ConversationHistoryItem {

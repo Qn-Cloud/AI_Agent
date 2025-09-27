@@ -350,7 +350,7 @@ func (r *ChatServiceRepo) DeleteMessage(id int64) error {
 }
 
 // GetConversationsByUserID 根据用户ID获取对话列表
-func (r *ChatServiceRepo) GetConversationsByUserID(userID int64, page, pageSize int) ([]model.Conversation, int64, error) {
+func (r *ChatServiceRepo) GetConversationsByUserID(userID int64, page, pageSize int, characterID int64) ([]model.Conversation, int64, error) {
 	db := r.svcCtx.Db.WithContext(r.ctx)
 
 	if page <= 0 {
@@ -362,7 +362,9 @@ func (r *ChatServiceRepo) GetConversationsByUserID(userID int64, page, pageSize 
 	offset := (page - 1) * pageSize
 
 	query := db.Model(&model.Conversation{}).Where("user_id = ?", userID)
-
+	if characterID > 0 {
+		query = query.Where("character_id = ?", characterID)
+	}
 	// 统计总数
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
