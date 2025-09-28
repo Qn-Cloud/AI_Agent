@@ -386,22 +386,31 @@ export const useChatStore = defineStore('chat', {
           const messageIndex = this.currentConversation.messages.findIndex(msg => msg.id === aiMessage.id)
           if (messageIndex !== -1) {
             this.currentConversation.messages[messageIndex].content = partialContent
+            console.log(`🔄 实时更新消息内容，长度: ${partialContent.length}, isStreaming: ${this.currentConversation.messages[messageIndex].isStreaming}`)
           }
         })
         
+        console.log('🎯 sendMessageFetchStream 返回结果:', response)
+        
+        // 无论是否收到完整响应，都要停止流式状态
         if (response && response.data) {
-          // 更新最终的AI回复
+          // 更新最终的AI回复，但保持原有的ID
           const messageIndex = this.currentConversation.messages.findIndex(msg => msg.id === aiMessage.id)
           if (messageIndex !== -1) {
+            // 保留原有消息的所有属性，只更新必要的字段
+            const currentMessage = this.currentConversation.messages[messageIndex]
+            console.log(`🔧 更新前消息状态: isStreaming=${currentMessage.isStreaming}, 内容长度=${currentMessage.content.length}`)
+            
             this.currentConversation.messages[messageIndex] = {
-              ...this.currentConversation.messages[messageIndex], // 保留原有属性
-              id: response.data.ai_message.id,
-              type: 'ai',
-              content: response.data.ai_message.content,
-              timestamp: new Date(response.data.ai_message.timestamp),
+              ...currentMessage, // 保留所有原有属性
+              content: response.data.ai_message.content || currentMessage.content, // 保留已有内容
+              timestamp: response.data.ai_message.timestamp ? new Date(response.data.ai_message.timestamp) : currentMessage.timestamp,
               isStreaming: false // 明确标记为完成
             }
-            console.log('✅ AI消息流式传输完成，设置 isStreaming = false')
+            
+            console.log(`✅ 更新后消息状态: isStreaming=${this.currentConversation.messages[messageIndex].isStreaming}, 内容长度=${this.currentConversation.messages[messageIndex].content.length}`)
+            console.log('✅ AI消息流式传输完成，最终内容长度:', this.currentConversation.messages[messageIndex].content.length)
+            console.log('✅ 消息ID保持不变:', this.currentConversation.messages[messageIndex].id)
           }
           
           this.currentConversation.lastUpdate = new Date()
@@ -410,8 +419,11 @@ export const useChatStore = defineStore('chat', {
           // 如果没有收到完整响应，也要停止流式状态
           const messageIndex = this.currentConversation.messages.findIndex(msg => msg.id === aiMessage.id)
           if (messageIndex !== -1) {
+            console.log(`⚠️ 没有收到完整响应，强制停止流式状态`)
+            console.log(`⚠️ 更新前: isStreaming=${this.currentConversation.messages[messageIndex].isStreaming}`)
             this.currentConversation.messages[messageIndex].isStreaming = false
-            console.log('⚠️ 没有收到完整响应，但停止流式状态')
+            console.log(`⚠️ 更新后: isStreaming=${this.currentConversation.messages[messageIndex].isStreaming}`)
+            console.log('⚠️ 没有收到完整响应，但停止流式状态，保留内容长度:', this.currentConversation.messages[messageIndex].content.length)
           }
         }
       } catch (error) {
@@ -605,6 +617,9 @@ export const useChatStore = defineStore('chat', {
     // 备用的fetch流式实现 (使用前端代理避免CORS)
     async sendMessageFetchStream(data, onUpdate, retryCount = 0) {
       const maxRetries = 2
+      let abortController = null
+      let timeoutId = null
+      let dataTimeoutId = null
       
       try {
         const backendURL = chatApi.defaults?.baseURL || '' // 使用前端代理，避免CORS问题
@@ -625,10 +640,12 @@ export const useChatStore = defineStore('chat', {
         const url = `${backendURL}/api/chat/send?${queryParams}`
         
         // 创建手动控制的AbortController，更稳定
-        const abortController = new AbortController()
-        const timeoutId = setTimeout(() => {
-          console.warn('⏰ Fetch请求超时，取消请求')
-          abortController.abort()
+        abortController = new AbortController()
+        timeoutId = setTimeout(() => {
+          console.warn('⏰ Fetch请求超时(180秒)，取消请求')
+          if (abortController) {
+            abortController.abort()
+          }
         }, 180000) // 180秒超时
         
         const response = await fetch(url, {
@@ -642,7 +659,10 @@ export const useChatStore = defineStore('chat', {
         })
         
         // 请求成功，清除超时
-        clearTimeout(timeoutId)
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
         
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`)
@@ -658,19 +678,35 @@ export const useChatStore = defineStore('chat', {
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
         
-        // 添加读取超时保护
+        // 改进数据超时检查逻辑
         let lastDataTime = Date.now()
-        const dataTimeoutId = setInterval(() => {
-          if (Date.now() - lastDataTime > 30000) { // 30秒没有数据
-            console.warn('⚠️ 30秒内没有收到数据，可能连接异常')
+        let isStreamActive = true
+        
+        dataTimeoutId = setInterval(() => {
+          if (!isStreamActive) {
             clearInterval(dataTimeoutId)
-            abortController.abort()
+            return
           }
-        }, 5000) // 每5秒检查一次
+          
+          const timeSinceLastData = Date.now() - lastDataTime
+          if (timeSinceLastData > 60000) { // 增加到60秒
+            console.warn(`⚠️ ${timeSinceLastData/1000}秒内没有收到数据，连接可能异常`)
+            isStreamActive = false
+            clearInterval(dataTimeoutId)
+            if (abortController && !abortController.signal.aborted) {
+              console.log('🔄 数据超时，但不中止请求，等待自然结束')
+              // 不调用 abort()，让连接自然结束
+            }
+          } else if (timeSinceLastData > 30000) {
+            console.log(`🔍 ${timeSinceLastData/1000}秒没有收到新数据，连接仍在等待...`)
+          }
+        }, 10000) // 每10秒检查一次
         
         let aiResponse = ''
         let messageId = null
         let buffer = ''
+        let hasReceivedData = false
+        let processedMessageIds = new Set() // 用于去重
         
         try {
           while (true) {
@@ -678,9 +714,11 @@ export const useChatStore = defineStore('chat', {
             
             if (done) {
               console.log('✅ 流式读取完成')
+              isStreamActive = false
               break
             }
             
+            hasReceivedData = true
             lastDataTime = Date.now() // 更新最后接收数据的时间
             
             // 解码数据
@@ -697,29 +735,60 @@ export const useChatStore = defineStore('chat', {
                 if (data.trim()) {
                   try {
                     const responseData = JSON.parse(data)
+                    
+                    // 去重检查：如果是message类型，检查是否已经处理过
+                    if (responseData.type === 'message' && responseData.message_id) {
+                      const uniqueKey = `${responseData.message_id}-${responseData.content?.length || 0}`
+                      if (processedMessageIds.has(uniqueKey)) {
+                        console.log('⚠️ 跳过重复消息:', uniqueKey)
+                        continue
+                      }
+                      processedMessageIds.add(uniqueKey)
+                    }
+                    
                     console.log('📨 收到流式数据:', responseData)
                     
                     if (responseData.type === 'message') {
-                      aiResponse += responseData.content || ''
+                      // 直接累加增量内容（后端现在只发送增量）
+                      const newContent = responseData.content || ''
+                      if (newContent) {
+                        aiResponse += newContent
+                        console.log(`📨 累加增量内容: +${newContent.length}字符, 总长度: ${aiResponse.length}`)
+                      }
                       messageId = responseData.message_id
                       
                       if (onUpdate) {
                         onUpdate(aiResponse)
                       }
-                    } else if (responseData.type === 'complete') {
-                      console.log('✅ 流式回复完成，最终内容:', aiResponse)
-                      clearInterval(dataTimeoutId)
+                    } else if (responseData.type === 'complete' || responseData.type === 'done') {
+                      console.log(`✅ 收到${responseData.type}事件，流式回复完成`)
+                      console.log('✅ 事件数据:', responseData)
+                      
+                      // 如果done/complete事件包含完整内容，优先使用它
+                      const finalContent = responseData.content || aiResponse
+                      console.log('✅ 最终AI回复内容长度:', finalContent.length)
+                      console.log('✅ 最终AI回复内容预览:', finalContent.substring(0, 100) + (finalContent.length > 100 ? '...' : ''))
+                      
+                      isStreamActive = false
+                      if (dataTimeoutId) {
+                        clearInterval(dataTimeoutId)
+                        dataTimeoutId = null
+                      }
+                      
                       return {
                         data: {
                           ai_message: {
-                            id: messageId || `ai-${Date.now()}`,
-                            content: aiResponse,
+                            content: finalContent, // 使用最终内容
                             timestamp: new Date().toISOString()
                           }
                         }
                       }
                     } else if (responseData.type === 'error') {
-                      clearInterval(dataTimeoutId)
+                      isStreamActive = false
+                      if (dataTimeoutId) {
+                        clearInterval(dataTimeoutId)
+                        dataTimeoutId = null
+                      }
                       throw new Error(responseData.message || '聊天请求失败')
                     }
                   } catch (parseError) {
@@ -730,37 +799,66 @@ export const useChatStore = defineStore('chat', {
             }
           }
           
-          // 清理定时器
-          clearInterval(dataTimeoutId)
-          
           // 如果循环结束但没有收到complete，返回当前内容
           if (aiResponse) {
+            console.log('⚠️ 流结束但没有收到complete事件，返回已接收内容:', aiResponse.length)
             return {
               data: {
                 ai_message: {
-                  id: messageId || `ai-${Date.now()}`,
                   content: aiResponse,
                   timestamp: new Date().toISOString()
                 }
               }
             }
+          } else if (hasReceivedData) {
+            console.warn('⚠️ 收到数据但没有有效内容')
+            throw new Error('收到数据但没有有效的回复内容')
           } else {
-            throw new Error('没有收到任何回复内容')
+            console.error('❌ 没有收到任何数据')
+            throw new Error('没有收到任何回复数据')
           }
           
         } finally {
-          clearInterval(dataTimeoutId)
-          reader.releaseLock()
+          isStreamActive = false
+          if (dataTimeoutId) {
+            clearInterval(dataTimeoutId)
+            dataTimeoutId = null
+          }
+          try {
+            reader.releaseLock()
+          } catch (e) {
+            console.warn('⚠️ 释放reader锁失败:', e.message)
+          }
         }
         
       } catch (error) {
         console.error('❌ Fetch流式请求失败:', error)
         
-        // 重试逻辑
-        if (retryCount < maxRetries && !error.message.includes('timeout') && !error.name === 'AbortError') {
-          console.log(`🔄 准备重试... (${retryCount + 1}/${maxRetries})`)
-          await new Promise(resolve => setTimeout(resolve, 2000)) // 等待2秒
+        // 清理定时器
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
+        if (dataTimeoutId) {
+          clearInterval(dataTimeoutId)
+          dataTimeoutId = null
+        }
+        
+        // 改进的重试逻辑
+        const shouldRetry = retryCount < maxRetries && 
+                           !error.name?.includes('AbortError') && 
+                           !error.message?.includes('timeout') &&
+                           !error.message?.includes('aborted')
+        
+        if (shouldRetry) {
+          console.log(`🔄 准备重试... (${retryCount + 1}/${maxRetries})，错误类型: ${error.name}`)
+          await new Promise(resolve => setTimeout(resolve, 2000 + retryCount * 1000)) // 递增延迟
           return this.sendMessageFetchStream(data, onUpdate, retryCount + 1)
+        }
+        
+        // 如果是AbortError，提供更友好的错误信息
+        if (error.name === 'AbortError') {
+          throw new Error('请求被中断，可能是网络超时或连接问题')
         }
         
         throw error
@@ -854,6 +952,21 @@ export const useChatStore = defineStore('chat', {
         console.error('删除对话失败:', error)
         throw error
       }
+    },
+
+    // 强制停止所有流式回复
+    forceStopStreaming() {
+      console.log('🛑 强制停止所有流式回复')
+      if (this.currentConversation && this.currentConversation.messages) {
+        this.currentConversation.messages.forEach((message, index) => {
+          if (message.isStreaming) {
+            console.log(`🛑 停止消息 ${message.id} 的流式状态`)
+            message.isStreaming = false
+          }
+        })
+      }
+      this.isLoading = false
+      console.log('�� 所有流式回复已停止')
     }
   }
 })

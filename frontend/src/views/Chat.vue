@@ -28,6 +28,9 @@
         <el-button @click="testSpeechService" type="primary" size="small">
           测试语音
         </el-button>
+        <el-button @click="forceStopStreaming" type="warning" size="small">
+          停止流式
+        </el-button>
         <el-button @click="openSettings" :icon="Setting" size="large" text>
           设置
         </el-button>
@@ -403,6 +406,12 @@ const testSSEConnection = async () => {
     console.error('❌ SSE连接失败:', error)
     ElMessage.error(`SSE连接失败: ${error.message}`)
   }
+}
+
+// 强制停止流式回复
+const forceStopStreaming = () => {
+  chatStore.forceStopStreaming()
+  ElMessage.success('流式回复已停止！')
 }
 
 // 生命周期

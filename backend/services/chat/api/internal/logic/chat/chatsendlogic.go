@@ -185,11 +185,10 @@ func (l *ChatSendLogic) streamCallModelWithChannel(client chan<- *types.ChatSSEE
 		if recv.Content != "" {
 			fullContent.WriteString(recv.Content)
 
-			// 发送增量内容
+			// 只发送增量内容，避免重复数据
 			l.sendEvent(client, &types.ChatSSEEvent{
 				Type:           common.AI_SSE_Event_Message,
-				Delta:          recv.Content,
-				Content:        fullContent.String(),
+				Content:        recv.Content, // 只发送当前增量内容
 				ConversationID: conversationId,
 			})
 		}
