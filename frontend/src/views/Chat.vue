@@ -194,6 +194,7 @@ const currentConversation = computed(() => chatStore.currentConversation)
 const currentMessages = computed(() => chatStore.currentMessages)
 const isLoading = computed(() => chatStore.isLoading)
 const isRecording = computed(() => chatStore.isRecording)
+const transcript = computed(() => chatStore.transcript)
 
 const voiceTipText = computed(() => {
   if (isLoading.value) return '处理中...'
@@ -249,6 +250,16 @@ watch(currentMessages, () => {
     scrollToBottom()
   })
 }, { deep: true })
+
+// 监听语音转文字结果
+watch(() => chatStore.transcript, (newTranscript) => {
+  if (newTranscript && newTranscript.trim()) {
+    textInput.value = newTranscript
+    console.log('📝 语音转文字结果已填入输入框:', newTranscript)
+    // 清空transcript，避免重复设置
+    chatStore.transcript = ''
+  }
+})
 
 const goBack = () => {
   router.push('/')

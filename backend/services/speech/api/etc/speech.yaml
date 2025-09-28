@@ -1,0 +1,47 @@
+Name: Speech
+Host: 0.0.0.0
+Port: 7005
+MaxBytes: 33554432  # 32MB，支持较大的音频文件上传
+
+# 语音服务配置
+Speech:
+  # ASR配置
+  ASR:
+    Provider: "mock"  # mock, baidu, tencent, aliyun, azure
+    Timeout: 30s
+    MaxDuration: 60s  # 最大音频时长60秒
+    SupportedFormats: ["wav", "mp3", "ogg", "m4a"]
+    
+  # TTS配置
+  TTS:
+    Provider: "mock"  # mock, baidu, tencent, aliyun, azure
+    Timeout: 30s
+    MaxTextLength: 1000
+    DefaultFormat: "mp3"
+    SupportedFormats: ["mp3", "wav", "ogg"]
+    
+  # 文件存储配置
+  Storage:
+    Type: "local"  # local, oss, s3, minio
+    BaseURL: "https://cdn.example.com"
+    LocalPath: "/tmp/audio"
+    
+# 第三方服务配置
+External:
+  # 百度AI配置
+  Baidu:
+    AppID: ""
+    APIKey: ""
+    SecretKey: ""
+    
+  # 腾讯云配置
+  Tencent:
+    SecretID: ""
+    SecretKey: ""
+    Region: "ap-beijing"
+    
+  # 阿里云配置
+  Aliyun:
+    AccessKeyID: ""
+    AccessKeySecret: ""
+    Region: "cn-hangzhou"

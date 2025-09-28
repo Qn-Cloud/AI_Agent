@@ -90,9 +90,26 @@ export const useChatStore = defineStore('chat', {
     initVoiceControllers() {
       if (!this.voiceRecorder) {
         this.voiceRecorder = new VoiceRecorder()
+        // 设置语音转文字的回调函数
+        this.voiceRecorder.setTranscriptCallback((text) => {
+          this.handleTranscript(text)
+        })
       }
       if (!this.voicePlayer) {
         this.voicePlayer = new VoicePlayer()
+      }
+    },
+
+    // 处理语音转文字结果
+    handleTranscript(text) {
+      console.log('🔤 语音转文字结果:', text)
+      if (text && text.trim() && !text.includes('[语音转文字失败')) {
+        // 设置转录文本到输入框
+        this.transcript = text.trim()
+        console.log('📝 语音转录完成，文本已设置到输入框')
+      } else if (text.includes('[语音转文字失败')) {
+        console.error('语音转文字失败')
+        this.transcript = ''
       }
     },
 
@@ -403,9 +420,8 @@ export const useChatStore = defineStore('chat', {
           this.voiceRecorder.stopRecording()
           this.isRecording = false
           
-          // 这里可以添加语音识别逻辑
-          // const transcript = await speechApi.speechToText(audioData)
-          // this.transcript = transcript
+          // 语音转文字由VoiceRecorder类自动处理
+          console.log('🎤 录音已停止，等待语音转文字...')
         }
       } catch (error) {
         this.error = error.message

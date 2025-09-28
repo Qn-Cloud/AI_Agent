@@ -66,20 +66,37 @@ export const speechApiService = {
   }
 }
 
-// 简化的VoiceRecorder类
+// 完整的VoiceRecorder类，支持语音转文字
 export class VoiceRecorder {
   constructor() {
     this.isRecording = false
     this.mediaRecorder = null
     this.stream = null
+    this.audioChunks = []
+    this.onTranscriptCallback = null
   }
 
   async startRecording() {
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       this.mediaRecorder = new MediaRecorder(this.stream)
+      this.audioChunks = []
       this.isRecording = true
+      
+      // 收集音频数据
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          this.audioChunks.push(event.data)
+        }
+      }
+      
+      // 录音结束时处理
+      this.mediaRecorder.onstop = async () => {
+        await this.processRecording()
+      }
+      
       this.mediaRecorder.start()
+      console.log('🎤 开始录音...')
       return true
     } catch (error) {
       console.error('录音启动失败:', error)
@@ -89,12 +106,56 @@ export class VoiceRecorder {
 
   stopRecording() {
     if (this.mediaRecorder && this.isRecording) {
+      console.log('🎤 停止录音...')
       this.mediaRecorder.stop()
       this.isRecording = false
       if (this.stream) {
         this.stream.getTracks().forEach(track => track.stop())
       }
     }
+  }
+
+  async processRecording() {
+    try {
+      if (this.audioChunks.length === 0) {
+        console.warn('没有录音数据')
+        return
+      }
+
+      // 创建音频Blob
+      const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' })
+      console.log('🎤 录音完成，大小:', (audioBlob.size / 1024).toFixed(2), 'KB')
+
+      // 调用语音转文字API
+      if (this.onTranscriptCallback) {
+        try {
+          console.log('🔄 正在转换语音为文字...')
+          const response = await speechApiService.speechToText(audioBlob, {
+            language: 'zh-CN',
+            format: 'wav'
+          })
+          
+          if (response && response.data && response.data.text) {
+            console.log('✅ 语音转文字成功:', response.data.text)
+            this.onTranscriptCallback(response.data.text)
+          } else {
+            console.warn('语音转文字返回空结果')
+            this.onTranscriptCallback('')
+          }
+        } catch (error) {
+          console.error('❌ 语音转文字失败:', error)
+          // 降级方案：显示提示信息
+          this.onTranscriptCallback('[语音转文字失败，请重试]')
+        }
+      }
+    } catch (error) {
+      console.error('处理录音失败:', error)
+    }
+  }
+
+  // 设置转录回调函数
+  setTranscriptCallback(callback) {
+    this.onTranscriptCallback = callback
   }
 }
 

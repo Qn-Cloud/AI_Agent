@@ -1,0 +1,28 @@
+syntax = "v1"
+
+info (
+	title:   "语音服务API"
+	desc:    "提供语音转文字和文字转语音功能"
+	author:  "AI Agent Team"
+	version: "v1.0"
+)
+
+import "speech_types.api"
+
+@server (
+	prefix: /api/speech
+)
+service Speech {
+	@doc "语音转文字"
+	@handler speechToText
+	post /stt (SpeechToTextRequest) returns (SpeechToTextResponse)
+
+	@doc "文字转语音"
+	@handler textToSpeech
+	post /tts (TextToSpeechRequest) returns (TextToSpeechResponse)
+
+	@doc "健康检查"
+	@handler healthCheck
+	get /health returns (BaseResponse)
+}
+

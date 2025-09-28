@@ -1,0 +1,41 @@
+// 语音转文字请求
+type SpeechToTextRequest {
+  AudioData  string `form:"audio_data,optional"`  // base64音频数据
+  Language   string `form:"language,optional,default=zh-CN"`
+  Format     string `form:"format,optional,default=wav"`
+  SampleRate int    `form:"sample_rate,optional,default=16000"`
+}
+
+// 语音转文字响应
+type SpeechToTextResponse {
+    Text       string  `json:"text"`
+    Confidence float64 `json:"confidence"`
+    Duration   float64 `json:"duration"`
+}
+
+// 文字转语音请求
+type TextToSpeechRequest {
+  Text          string `json:"text"`
+  CharacterID   int64  `json:"character_id,optional"`
+  VoiceSettings VoiceSettings `json:"voice_settings,optional"`
+  Format string `json:"format,optional,default=mp3"`
+}
+
+type VoiceSettings {
+    Rate   float64 `json:"rate,optional,default=1.0"`
+    Pitch  float64 `json:"pitch,optional,default=1.0"`
+    Volume float64 `json:"volume,optional,default=0.8"`
+}
+
+// 文字转语音响应
+type TextToSpeechResponse {
+    AudioURL  string  `json:"audio_url"`
+    Duration  float64 `json:"duration"`
+    Size      int64   `json:"size"`
+}
+
+// 基础响应
+type BaseResponse {
+  Code int    `json:"code"`
+  Msg  string `json:"msg"`
+}
