@@ -129,10 +129,12 @@ const characterStore = useCharacterStore()
 
 // 角色映射表（与History.vue保持一致）
 const characterMap = {
-  1: { id: 1, name: '哈利·波特', avatar: 'https://example.com/harry.jpg' },
-  2: { id: 2, name: '苏格拉底', avatar: 'https://example.com/socrates.jpg' },
-  4: { id: 4, name: '爱因斯坦', avatar: 'https://example.com/einstein.jpg' },
-  6: { id: 6, name: '赫敏·格兰杰', avatar: 'https://example.com/hermione.jpg' }
+  1: { id: 1, name: '哈利·波特', avatar: '/images/avatars/harry-potter.jpg' },
+  2: { id: 2, name: '苏格拉底', avatar: '/images/avatars/socrates.jpg' },
+  3: { id: 3, name: '莎士比亚', avatar: '/images/avatars/shakespeare.jpg' },
+  4: { id: 4, name: '爱因斯坦', avatar: '/images/avatars/einstein.jpg' },
+  5: { id: 5, name: '夏洛克·福尔摩斯', avatar: '/images/avatars/sherlock.jpg' },
+  6: { id: 6, name: '赫敏·格兰杰', avatar: '/images/avatars/hermione.jpg' }
 }
 
 // 计算属性
@@ -167,11 +169,11 @@ const selectConversation = (item) => {
 }
 
 const getCharacterAvatar = (characterId) => {
-  return characterMap[characterId]?.avatar || 'https://example.com/default.jpg'
+  return characterMap[characterId]?.avatar || '/images/avatars/harry-potter.jpg' // 使用哈利波特作为默认头像
 }
 
 const handleImageError = (event) => {
-  event.target.src = 'https://example.com/default.jpg'
+  event.target.src = '/images/avatars/harry-potter.jpg' // 使用哈利波特作为默认头像
 }
 
 const formatTime = (timeString) => {
@@ -221,6 +223,7 @@ onMounted(() => {
   flex-direction: column;
   background: transparent;
   border: none;
+  min-height: 200px;
 
   .sidebar-header {
     padding: 16px 20px 12px;
@@ -228,6 +231,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    background: transparent;
 
     h2 {
       margin: 0;

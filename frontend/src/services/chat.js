@@ -107,15 +107,20 @@ export const chatApiService = {
   async getChatHistoryBefore(userId = 1) {
     try {
       console.log('📤 获取分组对话历史，用户ID:', userId)
+      console.log('🔍 chatApi实例:', chatApi)
+      console.log('🔍 chatApi baseURL:', chatApi.defaults?.baseURL)
+      
       const response = await chatApi.get('/api/chat/before', {
         params: {
           user_id: userId
         }
       })
       console.log('✅ 获取分组对话历史成功:', response.data)
+      // 直接返回response，因为axios已经解析了JSON
       return response.data
     } catch (error) {
       console.error('❌ 获取分组对话历史失败:', error)
+      console.error('❌ 错误详情:', error.response?.data || error.message)
       throw error
     }
   },

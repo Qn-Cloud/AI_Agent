@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { chatApiService as chatApi, aiApiService as aiApi, speechApiService as speechApi, VoiceRecorder, VoicePlayer } from '../services'
+import { chatApiService, aiApiService as aiApi, speechApiService as speechApi, VoiceRecorder, VoicePlayer } from '../services'
 
 // 角色ID映射
 const characterMap = {
@@ -111,20 +111,17 @@ export const useChatStore = defineStore('chat', {
     async loadGroupedHistory() {
       try {
         this.isLoading = true
-        console.log('🔄 开始加载分组对话历史...')
         
-        const response = await chatApiService.getChatHistoryBefore(1) // 暂时固定用户ID为1
+        const response = await chatApiService.getChatHistoryBefore(1)
         
-        if (response.code === 0 && response.data) {
+        if (response && response.data) {
           this.groupedHistory = {
-            todays: response.data.todays || [],
-            yesterdays: response.data.yesterdays || [],
-            befores: response.data.befores || []
+            todays: Array.isArray(response.data.todays) ? response.data.todays : [],
+            yesterdays: Array.isArray(response.data.yesterdays) ? response.data.yesterdays : [],
+            befores: Array.isArray(response.data.befores) ? response.data.befores : []
           }
-          console.log('✅ 分组对话历史加载成功:', this.groupedHistory)
-        } else {
-          console.warn('⚠️ 分组对话历史响应格式异常:', response)
         }
+        
       } catch (error) {
         this.error = error.message
         console.error('❌ 加载分组对话历史失败:', error)
@@ -141,7 +138,7 @@ export const useChatStore = defineStore('chat', {
         
         console.log('正在从后端加载对话历史...', params)
         
-        const response = await chatApi.getConversationHistory({
+        const response = await chatApiService.getConversationHistory({
           page: params.page || 1,
           pageSize: params.pageSize || 20,
           characterId: params.characterId,
@@ -293,7 +290,7 @@ export const useChatStore = defineStore('chat', {
     async testApiConnection() {
       console.log('🧪 开始手动测试API连接...')
       try {
-        const response = await chatApi.getConversationHistory({
+        const response = await chatApiService.getConversationHistory({
           page: 1,
           pageSize: 5,
           userId: 1
@@ -312,7 +309,7 @@ export const useChatStore = defineStore('chat', {
         this.isLoading = true
         this.error = null
         
-        const response = await chatApi.createConversation({
+        const response = await chatApiService.createConversation({
           characterId,
           title: `与${getCharacterName(characterId)}的对话`
         })
@@ -470,7 +467,7 @@ export const useChatStore = defineStore('chat', {
       
       return new Promise((resolve, reject) => {
         // 使用前端代理，避免CORS问题
-        const backendURL = chatApi.defaults?.baseURL || ''
+        const backendURL = chatApiService.defaults?.baseURL || ''
         
         const requestData = {
           conversation_id: data.conversationId,
@@ -642,7 +639,7 @@ export const useChatStore = defineStore('chat', {
       let dataTimeoutId = null
       
       try {
-        const backendURL = chatApi.defaults?.baseURL || '' // 使用前端代理，避免CORS问题
+        const backendURL = chatApiService.defaults?.baseURL || '' // 使用前端代理，避免CORS问题
         
         const requestData = {
           conversation_id: data.conversationId,
@@ -960,7 +957,7 @@ export const useChatStore = defineStore('chat', {
     // 删除对话
     async deleteConversation(conversationId) {
       try {
-        await chatApi.deleteConversation(conversationId)
+        await chatApiService.deleteConversation(conversationId)
         
         this.conversations = this.conversations.filter(conv => conv.id !== conversationId)
         
