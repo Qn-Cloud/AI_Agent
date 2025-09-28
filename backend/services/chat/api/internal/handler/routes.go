@@ -40,12 +40,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: chat.ExportConversationHandler(serverCtx),
 			},
 			{
-				// 获取对话消息历史
-				Method:  http.MethodGet,
-				Path:    "/api/chat/conversation/:id/messages",
-				Handler: chat.GetMessagesHandler(serverCtx),
-			},
-			{
 				// 清空对话消息
 				Method:  http.MethodDelete,
 				Path:    "/api/chat/conversation/:id/messages",
@@ -80,6 +74,12 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Method:  http.MethodPost,
 				Path:    "/api/chat/message",
 				Handler: chat.SendMessageHandler(serverCtx),
+			},
+			{
+				// 获取对话消息历史
+				Method:  http.MethodGet,
+				Path:    "/api/chat/messages",
+				Handler: chat.GetMessagesHandler(serverCtx),
 			},
 			{
 				// 搜索对话

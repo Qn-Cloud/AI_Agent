@@ -32,7 +32,7 @@ service chat-api {
 
 	@doc "获取对话消息历史"
 	@handler getMessages
-	get /api/chat/conversation/:id/messages (MessageListRequest) returns (MessageListResponse)
+	get /api/chat/messages (MessageListRequest) returns (MessageListResponse)
 
 	@doc "删除对话"
 	@handler deleteConversation

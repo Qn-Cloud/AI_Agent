@@ -27,8 +27,11 @@ func NewGetMessagesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetMe
 }
 
 func (l *GetMessagesLogic) GetMessages(req *types.MessageListRequest) (resp *types.MessageListResponse, err error) {
+	l.Logger.Infof("GetMessages请求参数: %+v", req)
+
 	// 参数验证
 	if req.ConversationID <= 0 {
+		l.Logger.Errorf("对话ID无效: %d", req.ConversationID)
 		return &types.MessageListResponse{
 			Code: 400,
 			Msg:  "对话ID无效",
@@ -47,6 +50,8 @@ func (l *GetMessagesLogic) GetMessages(req *types.MessageListRequest) (resp *typ
 			Msg:  "获取消息列表失败",
 		}, nil
 	}
+
+	l.Logger.Infof("查询到 %d 条消息，总数: %d", len(messages), total)
 
 	// 转换数据格式
 	converter := converter.NewChatConverter()
