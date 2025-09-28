@@ -136,7 +136,7 @@ type UpdateTitleRequest struct {
 }
 
 type GetConversationHistoryRequest struct {
-	Keyword     string `form:"keyword,optional"`
+	Keyword     string `form:"keyword,optional,omitempty"`
 	Page        int    `form:"page,optional,default=1"`
 	PageSize    int    `form:"page_size,optional,default=20"`
 	UserID      int64  `form:"user_id,omitempty"`
