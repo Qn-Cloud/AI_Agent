@@ -10,7 +10,7 @@ Timeout: 180000
 Mysql:
   Username: root
   Password: "000000"
-  Host: 192.168.23.188
+  Host: IPAddress
   Port: "3306"
   Database: "ai_roleplay"
   Charset: "utf8mb4"
@@ -26,7 +26,7 @@ Mysql:
   IgnoreRecordNotFoundError: false
 
 Redis:
-  Addr: 192.168.23.188:6379
+  Addr: IPAddress:6379
   Pwd: ""
   Db: 0
   PoolSize: 200
