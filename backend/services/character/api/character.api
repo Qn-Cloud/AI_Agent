@@ -41,18 +41,12 @@ service character-api {
 	@doc "获取角色标签"
 	@handler getCharacterTags
 	get /api/character/tags returns (CharacterTagsResponse)
-}
 
-// 需要认证的接口
-@server (
-	group: character
-)
-service character-api {
 	@doc "创建自定义角色"
 	@handler createCharacter
 	post /api/character (CreateCharacterRequest) returns (CreateCharacterResponse)
 
-	@doc "更新角色信息"
+	@doc "更新角色基本信息"
 	@handler updateCharacter
 	put /api/character/:id (UpdateCharacterRequest) returns (UpdateCharacterResponse)
 

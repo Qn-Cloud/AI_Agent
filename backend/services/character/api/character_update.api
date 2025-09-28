@@ -1,0 +1,53 @@
+syntax = "v1"
+
+info(
+    title: "角色更新API"
+    desc: "角色信息的分层更新接口"
+    author: "backend team"
+    version: "1.0"
+)
+
+import "character_types.api"
+
+// 需要认证的更新接口
+@server(
+    jwt: Auth
+    group: character_update
+    middleware: UserAuthMiddleware
+)
+service character-api {
+    // 基础信息更新（一次性更新多个基础字段）
+    @doc "更新角色基础信息"
+    @handler updateCharacterBasic
+    put /api/character/:id/basic (UpdateCharacterBasicRequest) returns (UpdateCharacterBasicResponse)
+    
+    // 性格特征更新（复杂对象）
+    @doc "更新角色性格特征"
+    @handler updateCharacterPersonality
+    put /api/character/:id/personality (UpdatePersonalityRequest) returns (UpdatePersonalityResponse)
+    
+    // 对话风格更新
+    @doc "更新角色对话风格"
+    @handler updateCharacterDialogueStyle
+    put /api/character/:id/dialogue-style (UpdateDialogueStyleRequest) returns (UpdateDialogueStyleResponse)
+    
+    // 自定义Prompt更新（大文本）
+    @doc "更新角色自定义Prompt"
+    @handler updateCharacterPrompt
+    put /api/character/:id/prompt (UpdatePromptRequest) returns (UpdatePromptResponse)
+    
+    // 语音设置更新（技术参数）
+    @doc "更新角色语音设置"
+    @handler updateCharacterVoice
+    put /api/character/:id/voice (UpdateVoiceSettingsRequest) returns (UpdateVoiceSettingsResponse)
+    
+    // 批量更新接口（用于一次性更新所有配置）
+    @doc "批量更新角色所有配置"
+    @handler updateCharacterBatch
+    put /api/character/:id/batch (UpdateCharacterBatchRequest) returns (UpdateCharacterBatchResponse)
+    
+    // 部分字段更新接口（用于单个字段的快速更新）
+    @doc "更新角色单个字段"
+    @handler updateCharacterField
+    patch /api/character/:id/field (UpdateCharacterFieldRequest) returns (UpdateCharacterFieldResponse)
+} 

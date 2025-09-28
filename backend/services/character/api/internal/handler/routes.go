@@ -6,7 +6,6 @@ package handler
 import (
 	"net/http"
 
-	character "ai-roleplay/services/character/api/internal/handler/character"
 	public "ai-roleplay/services/character/api/internal/handler/public"
 	"ai-roleplay/services/character/api/internal/svc"
 
@@ -20,66 +19,49 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				// 创建自定义角色
 				Method:  http.MethodPost,
 				Path:    "/api/character",
-				Handler: character.CreateCharacterHandler(serverCtx),
+				Handler: public.CreateCharacterHandler(serverCtx),
 			},
-			{
-				// 更新角色信息
-				Method:  http.MethodPut,
-				Path:    "/api/character/:id",
-				Handler: character.UpdateCharacterHandler(serverCtx),
-			},
-			{
-				// 删除角色
-				Method:  http.MethodDelete,
-				Path:    "/api/character/:id",
-				Handler: character.DeleteCharacterHandler(serverCtx),
-			},
-			{
-				// 收藏/取消收藏角色
-				Method:  http.MethodPost,
-				Path:    "/api/character/:id/favorite",
-				Handler: character.ToggleFavoriteHandler(serverCtx),
-			},
-			{
-				// 更新角色性格设置
-				Method:  http.MethodPut,
-				Path:    "/api/character/:id/personality",
-				Handler: character.UpdatePersonalityHandler(serverCtx),
-			},
-			{
-				// 更新角色提示词
-				Method:  http.MethodPut,
-				Path:    "/api/character/:id/prompt",
-				Handler: character.UpdatePromptHandler(serverCtx),
-			},
-			{
-				// 更新语音设置
-				Method:  http.MethodPut,
-				Path:    "/api/character/:id/voice",
-				Handler: character.UpdateVoiceSettingsHandler(serverCtx),
-			},
-			{
-				// 获取我的收藏角色
-				Method:  http.MethodGet,
-				Path:    "/api/character/favorites",
-				Handler: character.GetMyFavoritesHandler(serverCtx),
-			},
-			{
-				// 获取我创建的角色
-				Method:  http.MethodGet,
-				Path:    "/api/character/my",
-				Handler: character.GetMyCharactersHandler(serverCtx),
-			},
-		},
-	)
-
-	server.AddRoutes(
-		[]rest.Route{
 			{
 				// 获取角色详情
 				Method:  http.MethodGet,
 				Path:    "/api/character/:id",
 				Handler: public.GetCharacterDetailHandler(serverCtx),
+			},
+			{
+				// 更新角色基本信息
+				Method:  http.MethodPut,
+				Path:    "/api/character/:id",
+				Handler: public.UpdateCharacterHandler(serverCtx),
+			},
+			{
+				// 删除角色
+				Method:  http.MethodDelete,
+				Path:    "/api/character/:id",
+				Handler: public.DeleteCharacterHandler(serverCtx),
+			},
+			{
+				// 收藏/取消收藏角色
+				Method:  http.MethodPost,
+				Path:    "/api/character/:id/favorite",
+				Handler: public.ToggleFavoriteHandler(serverCtx),
+			},
+			{
+				// 更新角色性格设置
+				Method:  http.MethodPut,
+				Path:    "/api/character/:id/personality",
+				Handler: public.UpdatePersonalityHandler(serverCtx),
+			},
+			{
+				// 更新角色提示词
+				Method:  http.MethodPut,
+				Path:    "/api/character/:id/prompt",
+				Handler: public.UpdatePromptHandler(serverCtx),
+			},
+			{
+				// 更新语音设置
+				Method:  http.MethodPut,
+				Path:    "/api/character/:id/voice",
+				Handler: public.UpdateVoiceSettingsHandler(serverCtx),
 			},
 			{
 				// 获取角色分类
@@ -88,10 +70,22 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: public.GetCharacterCategoriesHandler(serverCtx),
 			},
 			{
+				// 获取我的收藏角色
+				Method:  http.MethodGet,
+				Path:    "/api/character/favorites",
+				Handler: public.GetMyFavoritesHandler(serverCtx),
+			},
+			{
 				// 获取角色列表
 				Method:  http.MethodGet,
 				Path:    "/api/character/list",
 				Handler: public.GetCharacterListHandler(serverCtx),
+			},
+			{
+				// 获取我创建的角色
+				Method:  http.MethodGet,
+				Path:    "/api/character/my",
+				Handler: public.GetMyCharactersHandler(serverCtx),
 			},
 			{
 				// 获取热门角色

@@ -1,25 +1,25 @@
-package character
+package public
 
 import (
 	"net/http"
 
-	"ai-roleplay/services/character/api/internal/logic/character"
+	"ai-roleplay/services/character/api/internal/logic/public"
 	"ai-roleplay/services/character/api/internal/svc"
 	"ai-roleplay/services/character/api/internal/types"
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
-// 获取我的收藏角色
-func GetMyFavoritesHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+// 创建自定义角色
+func CreateCharacterHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.FavoriteCharacterRequest
+		var req types.CreateCharacterRequest
 		if err := httpx.Parse(r, &req); err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return
 		}
 
-		l := character.NewGetMyFavoritesLogic(r.Context(), svcCtx)
-		resp, err := l.GetMyFavorites(&req)
+		l := public.NewCreateCharacterLogic(r.Context(), svcCtx)
+		resp, err := l.CreateCharacter(&req)
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 		} else {

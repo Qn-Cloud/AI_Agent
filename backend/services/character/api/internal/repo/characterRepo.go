@@ -5,7 +5,6 @@ import (
 	"ai-roleplay/services/character/api/internal/types"
 	"ai-roleplay/services/character/model"
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -284,13 +283,14 @@ func (r *CharacterServiceRepo) UpdateCharacter(character *model.Character) error
 	return nil
 }
 
-// DeleteCharacter 删除角色
+// DeleteCharacter 删除角色（软删除）
 func (r *CharacterServiceRepo) DeleteCharacter(id, creatorID int64) error {
 	db := r.svcCtx.Db.WithContext(r.ctx)
 
-	// 只能删除自己创建的角色
-	if err := db.Where("id = ? AND creator_id = ?", id, creatorID).
-		Delete(&model.Character{}).Error; err != nil {
+	// 软删除：更新状态为2（禁用）
+	if err := db.Model(&model.Character{}).
+		Where("id = ? AND creator_id = ?", id, creatorID).
+		Update("status", 2).Error; err != nil {
 		r.Logger.Error("DeleteCharacter failed: ", err)
 		return err
 	}
@@ -304,7 +304,7 @@ func (r *CharacterServiceRepo) ToggleFavorite(userID, characterID int64) (bool, 
 
 	// 检查是否已收藏
 	var count int64
-	if err := db.Table("user_character_favorites").
+	if err := db.Table("character_favorites").
 		Where("user_id = ? AND character_id = ?", userID, characterID).
 		Count(&count).Error; err != nil {
 		r.Logger.Error("ToggleFavorite check failed: ", err)
@@ -312,42 +312,45 @@ func (r *CharacterServiceRepo) ToggleFavorite(userID, characterID int64) (bool, 
 	}
 
 	if count > 0 {
-		// 取消收藏
-		if err := db.Exec("DELETE FROM user_character_favorites WHERE user_id = ? AND character_id = ?",
+		// 已收藏，取消收藏
+		if err := db.Exec("DELETE FROM character_favorites WHERE user_id = ? AND character_id = ?",
 			userID, characterID).Error; err != nil {
-			r.Logger.Error("ToggleFavorite remove failed: ", err)
+			r.Logger.Error("ToggleFavorite delete failed: ", err)
 			return false, err
 		}
 
-		// 减少收藏数
-		if err := db.Model(&model.Character{}).Where("id = ?", characterID).
+		// 更新收藏数
+		if err := db.Model(&model.Character{}).
+			Where("id = ?", characterID).
 			UpdateColumn("favorite_count", gorm.Expr("favorite_count - 1")).Error; err != nil {
-			r.Logger.Error("ToggleFavorite decrease count failed: ", err)
+			r.Logger.Error("ToggleFavorite update count failed: ", err)
 		}
 
 		return false, nil
 	} else {
-		// 添加收藏
-		if err := db.Exec("INSERT INTO user_character_favorites (user_id, character_id, created_at) VALUES (?, ?, NOW())",
+		// 未收藏，添加收藏
+		if err := db.Exec("INSERT INTO character_favorites (user_id, character_id, created_at) VALUES (?, ?, NOW())",
 			userID, characterID).Error; err != nil {
-			r.Logger.Error("ToggleFavorite add failed: ", err)
+			r.Logger.Error("ToggleFavorite insert failed: ", err)
 			return false, err
 		}
 
-		// 增加收藏数
-		if err := db.Model(&model.Character{}).Where("id = ?", characterID).
+		// 更新收藏数
+		if err := db.Model(&model.Character{}).
+			Where("id = ?", characterID).
 			UpdateColumn("favorite_count", gorm.Expr("favorite_count + 1")).Error; err != nil {
-			r.Logger.Error("ToggleFavorite increase count failed: ", err)
+			r.Logger.Error("ToggleFavorite update count failed: ", err)
 		}
 
 		return true, nil
 	}
 }
 
-// GetMyFavorites 获取我的收藏
+// GetMyFavorites 获取我的收藏角色
 func (r *CharacterServiceRepo) GetMyFavorites(userID int64, req *types.FavoriteCharacterRequest) ([]model.Character, int64, error) {
 	db := r.svcCtx.Db.WithContext(r.ctx)
 
+	// 设置默认值
 	page := req.Page
 	if page <= 0 {
 		page = 1
@@ -358,23 +361,22 @@ func (r *CharacterServiceRepo) GetMyFavorites(userID int64, req *types.FavoriteC
 	}
 	offset := (page - 1) * pageSize
 
-	// 统计总数
+	// 构建查询：通过favorites表关联
+	query := db.Model(&model.Character{}).
+		Joins("INNER JOIN character_favorites ON characters.id = character_favorites.character_id").
+		Where("character_favorites.user_id = ? AND characters.status = ?", userID, 1)
+
+	// 获取总数
 	var total int64
-	if err := db.Table("user_character_favorites").
-		Where("user_id = ?", userID).
-		Count(&total).Error; err != nil {
+	if err := query.Count(&total).Error; err != nil {
 		r.Logger.Error("GetMyFavorites count failed: ", err)
 		return nil, 0, err
 	}
 
-	// 查询收藏的角色
+	// 获取数据
 	var characters []model.Character
-	if err := db.Table("characters").
-		Select("characters.*").
-		Joins("INNER JOIN user_character_favorites ON characters.id = user_character_favorites.character_id").
-		Where("user_character_favorites.user_id = ? AND characters.status = ?", userID, 1).
-		Order("user_character_favorites.created_at DESC").
-		Offset(offset).Limit(pageSize).
+	if err := query.Offset(offset).Limit(pageSize).
+		Order("character_favorites.created_at DESC").
 		Find(&characters).Error; err != nil {
 		r.Logger.Error("GetMyFavorites find failed: ", err)
 		return nil, 0, err
@@ -387,6 +389,7 @@ func (r *CharacterServiceRepo) GetMyFavorites(userID int64, req *types.FavoriteC
 func (r *CharacterServiceRepo) GetMyCharacters(userID int64, req *types.MyCharacterRequest) ([]model.Character, int64, error) {
 	db := r.svcCtx.Db.WithContext(r.ctx)
 
+	// 设置默认值
 	page := req.Page
 	if page <= 0 {
 		page = 1
@@ -397,18 +400,36 @@ func (r *CharacterServiceRepo) GetMyCharacters(userID int64, req *types.MyCharac
 	}
 	offset := (page - 1) * pageSize
 
-	query := db.Model(&model.Character{}).Where("creator_id = ? AND status = ?", userID, 1)
+	// 构建查询
+	query := db.Model(&model.Character{}).
+		Where("creator_id = ? AND status != ?", userID, 2) // 排除已删除的
 
-	// 统计总数
+	// 状态筛选
+	if req.Status > 0 {
+		query = query.Where("status = ?", req.Status)
+	}
+
+	// 公开性筛选
+	if req.IsPublic != nil {
+		isPublicValue := 0
+		if *req.IsPublic {
+			isPublicValue = 1
+		}
+		query = query.Where("is_public = ?", isPublicValue)
+	}
+
+	// 获取总数
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		r.Logger.Error("GetMyCharacters count failed: ", err)
 		return nil, 0, err
 	}
 
-	// 查询数据
+	// 获取数据
 	var characters []model.Character
-	if err := query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&characters).Error; err != nil {
+	if err := query.Offset(offset).Limit(pageSize).
+		Order("created_at DESC").
+		Find(&characters).Error; err != nil {
 		r.Logger.Error("GetMyCharacters find failed: ", err)
 		return nil, 0, err
 	}
@@ -416,7 +437,7 @@ func (r *CharacterServiceRepo) GetMyCharacters(userID int64, req *types.MyCharac
 	return characters, total, nil
 }
 
-// UpdatePrompt 更新角色提示词
+// UpdatePrompt 更新提示词
 func (r *CharacterServiceRepo) UpdatePrompt(id, creatorID int64, prompt string) error {
 	db := r.svcCtx.Db.WithContext(r.ctx)
 
@@ -430,19 +451,13 @@ func (r *CharacterServiceRepo) UpdatePrompt(id, creatorID int64, prompt string) 
 	return nil
 }
 
-// UpdatePersonality 更新角色性格
-func (r *CharacterServiceRepo) UpdatePersonality(id, creatorID int64, personality types.CharacterPersonality) error {
+// UpdatePersonality 更新性格设置
+func (r *CharacterServiceRepo) UpdatePersonality(id, creatorID int64, personality string) error {
 	db := r.svcCtx.Db.WithContext(r.ctx)
-
-	personalityJSON, err := json.Marshal(personality)
-	if err != nil {
-		r.Logger.Error("UpdatePersonality marshal failed: ", err)
-		return err
-	}
 
 	if err := db.Model(&model.Character{}).
 		Where("id = ? AND creator_id = ?", id, creatorID).
-		Update("personality", string(personalityJSON)).Error; err != nil {
+		Update("personality", personality).Error; err != nil {
 		r.Logger.Error("UpdatePersonality failed: ", err)
 		return err
 	}
@@ -451,18 +466,12 @@ func (r *CharacterServiceRepo) UpdatePersonality(id, creatorID int64, personalit
 }
 
 // UpdateVoiceSettings 更新语音设置
-func (r *CharacterServiceRepo) UpdateVoiceSettings(id, creatorID int64, voiceSettings types.CharacterVoiceSettings) error {
+func (r *CharacterServiceRepo) UpdateVoiceSettings(id, creatorID int64, voiceSettings string) error {
 	db := r.svcCtx.Db.WithContext(r.ctx)
-
-	voiceSettingsJSON, err := json.Marshal(voiceSettings)
-	if err != nil {
-		r.Logger.Error("UpdateVoiceSettings marshal failed: ", err)
-		return err
-	}
 
 	if err := db.Model(&model.Character{}).
 		Where("id = ? AND creator_id = ?", id, creatorID).
-		Update("voice_settings", string(voiceSettingsJSON)).Error; err != nil {
+		Update("voice_settings", voiceSettings).Error; err != nil {
 		r.Logger.Error("UpdateVoiceSettings failed: ", err)
 		return err
 	}

@@ -1,9 +1,9 @@
-package character
+package public
 
 import (
 	"net/http"
 
-	"ai-roleplay/services/character/api/internal/logic/character"
+	"ai-roleplay/services/character/api/internal/logic/public"
 	"ai-roleplay/services/character/api/internal/svc"
 	"ai-roleplay/services/character/api/internal/types"
 	"github.com/zeromicro/go-zero/rest/httpx"
@@ -18,7 +18,7 @@ func DeleteCharacterHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 
-		l := character.NewDeleteCharacterLogic(r.Context(), svcCtx)
+		l := public.NewDeleteCharacterLogic(r.Context(), svcCtx)
 		resp, err := l.DeleteCharacter(&req)
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
