@@ -15,6 +15,16 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       // 注意：更具体的路径规则要放在前面，通用规则放在后面
+      '/api/chat/send': {
+        target: 'http://192.168.23.188:7001', // 聊天服务SSE端点
+        changeOrigin: true,
+        secure: false,
+        ws: true, // 支持WebSocket/SSE
+        rewrite: (path) => {
+          console.log('🔄 代理SSE聊天请求:', path)
+          return path
+        }
+      },
       '/api/speech': {
         target: 'http://192.168.23.188:7005', // 语音服务
         changeOrigin: true,

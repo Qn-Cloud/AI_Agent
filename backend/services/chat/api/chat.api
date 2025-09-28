@@ -64,6 +64,6 @@ service chat-api {
 
 	@doc "发送消息并获取SSE流式响应"
 	@handler ChatSendHandler
-	post /api/chat/send (ChatSendRequest)
+	get /api/chat/send (ChatSendRequest)
 }
 

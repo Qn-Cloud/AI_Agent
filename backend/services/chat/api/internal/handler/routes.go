@@ -89,7 +89,7 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 			{
 				// 发送消息并获取SSE流式响应
-				Method:  http.MethodPost,
+				Method:  http.MethodGet,
 				Path:    "/api/chat/send",
 				Handler: chat.ChatSendHandler(serverCtx),
 			},

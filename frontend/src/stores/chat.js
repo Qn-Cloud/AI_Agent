@@ -426,7 +426,8 @@ export const useChatStore = defineStore('chat', {
     // SSE发送消息的具体实现
     async sendMessageSSE(data, onUpdate) {
       return new Promise((resolve, reject) => {
-        const baseURL = chatApi.defaults?.baseURL || ''
+        // 直接使用后端服务器地址，绕过代理问题
+        const backendURL = import.meta.env.DEV ? 'http://192.168.23.188:7001' : (chatApi.defaults?.baseURL || '')
         
         const requestData = {
           conversation_id: data.conversationId,
@@ -436,14 +437,14 @@ export const useChatStore = defineStore('chat', {
           user_id: 1 // 暂时固定为1
         }
         
-        console.log('📤 发送SSE聊天请求到:', `${baseURL}/api/chat/send`)
+        console.log('📤 发送SSE聊天请求到:', `${backendURL}/api/chat/send`)
         console.log('📤 请求参数:', requestData)
-        console.log('🔍 chatApi baseURL:', chatApi.defaults?.baseURL)
-        console.log('🔍 实际baseURL:', baseURL)
+        console.log('🔍 开发环境:', import.meta.env.DEV)
+        console.log('🔍 使用后端URL:', backendURL)
         
         // 由于EventSource只支持GET请求，我们需要将参数作为查询参数
         const queryParams = new URLSearchParams(requestData).toString()
-        const url = `${baseURL}/api/chat/send?${queryParams}`
+        const url = `${backendURL}/api/chat/send?${queryParams}`
         
         console.log('🔗 完整SSE URL:', url)
         

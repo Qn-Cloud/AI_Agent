@@ -26,10 +26,10 @@ type ChatSSEEvent struct {
 }
 
 type ChatSendRequest struct {
-	CharacterID    int64  `json:"character_id"`
-	ConversationId int64  `json:"conversation_id"`
-	MessageType    int64  `json:"message_type"`
-	Content        string `json:"content"`
+	CharacterID    int64  `form:"character_id"`
+	ConversationId int64  `form:"conversation_id"`
+	MessageType    int64  `form:"message_type"`
+	Content        string `form:"content"`
 }
 
 type Conversation struct {
