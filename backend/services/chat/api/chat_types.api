@@ -103,8 +103,7 @@ type ConversationListResponse {
 type MessageListRequest {
     Page     int   `form:"page,optional,default=1"`
     PageSize int   `form:"page_size,optional,default=50"`
-    BeforeID int64 `form:"before_id,omitempty"`  // 用于分页，获取此ID之前的消息
-     ConversationID int64 `form:"conversation_id,omitempty"`
+    ConversationID int64 `form:"conversation_id,omitempty"`
 }
 
 // 消息列表响应

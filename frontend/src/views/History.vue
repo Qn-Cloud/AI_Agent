@@ -169,7 +169,7 @@
               </div>
               <div class="conversation-meta">
                 <span class="character-name">与{{ getCharacterById(conversation.characterId)?.name }}的对话</span>
-                <span class="message-count">{{ conversation.messages.length }} 条消息</span>
+                <span class="message-count">{{ conversation.messageCount || conversation.messages.length }} 条消息</span>
                 <span class="duration">{{ formatDuration(conversation) }}</span>
               </div>
               <div class="conversation-preview">
@@ -305,7 +305,7 @@
           <h3>{{ selectedConversationDetail.title }}</h3>
           <div class="detail-meta">
             <span>与{{ getCharacterById(selectedConversationDetail.characterId)?.name }}的对话</span>
-            <span>{{ selectedConversationDetail.messages.length }} 条消息</span>
+            <span>{{ selectedConversationDetail.messageCount || selectedConversationDetail.messages.length }} 条消息</span>
             <span>{{ formatTime(selectedConversationDetail.startTime) }} - {{ formatTime(selectedConversationDetail.lastUpdate) }}</span>
           </div>
         </div>
@@ -467,15 +467,30 @@ const groupedConversations = computed(() => {
 })
 
 const totalMessages = computed(() => {
-  return filteredConversations.value.reduce((total, conv) => total + conv.messages.length, 0)
+  // 优先使用后端返回的统计数据
+  if (chatStore.stats.messageCount > 0) {
+    return chatStore.stats.messageCount
+  }
+  // 降级方案：从对话列表计算
+  return filteredConversations.value.reduce((total, conv) => total + (conv.messageCount || conv.messages.length), 0)
 })
 
 const uniqueCharacters = computed(() => {
+  // 优先使用后端返回的统计数据
+  if (chatStore.stats.characterCount > 0) {
+    return chatStore.stats.characterCount
+  }
+  // 降级方案：从对话列表计算
   const characterIds = new Set(filteredConversations.value.map(conv => conv.characterId))
   return characterIds.size
 })
 
 const activeDays = computed(() => {
+  // 优先使用后端返回的统计数据
+  if (chatStore.stats.activeDays >= 0) {
+    return chatStore.stats.activeDays
+  }
+  // 降级方案：从对话列表计算
   const dates = new Set(
     filteredConversations.value.map(conv =>
       new Date(conv.lastUpdate).toDateString()
@@ -509,8 +524,24 @@ watch(paginatedConversations, () => {
 })
 
 // 方法
+// 角色ID映射（数字ID到角色信息的映射）
+const characterMap = {
+  1: { id: 1, name: '哈利·波特', avatar: '/images/avatars/harry-potter.jpg' },
+  2: { id: 2, name: '苏格拉底', avatar: '/images/avatars/socrates.jpg' },
+  3: { id: 3, name: '莎士比亚', avatar: '/images/avatars/shakespeare.jpg' },
+  4: { id: 4, name: '爱因斯坦', avatar: '/images/avatars/einstein.jpg' },
+  5: { id: 5, name: '夏洛克·福尔摩斯', avatar: '/images/avatars/holmes.jpg' },
+  6: { id: 6, name: '赫敏·格兰杰', avatar: '/images/avatars/hermione.jpg' }
+}
+
 const getCharacterById = (id) => {
-  return characters.value.find(char => char.id === id)
+  // 优先使用角色映射表
+  if (characterMap[id]) {
+    return characterMap[id]
+  }
+  
+  // 降级方案：从character store查找
+  return characters.value.find(char => char.id === id || char.id === String(id))
 }
 
 const handleSearch = () => {
@@ -557,9 +588,46 @@ const handlePageChange = (page) => {
   selectAll.value = false
 }
 
-const openConversation = (conversation) => {
-  selectedConversationDetail.value = conversation
+const openConversation = async (conversation) => {
+  selectedConversationDetail.value = { ...conversation }
   showDetailDialog.value = true
+  
+  // 加载消息详情
+  await loadConversationMessages(conversation.id)
+}
+
+// 加载对话消息详情
+const loadConversationMessages = async (conversationId) => {
+  try {
+    console.log('🔍 加载对话消息:', conversationId)
+    
+    const response = await chatApiService.getMessages(conversationId, {
+      page: 1,
+      pageSize: 100 // 加载更多消息
+    })
+    
+    if (response && response.data && response.data.messages) {
+      // 转换消息格式
+      const messages = response.data.messages.map(msg => ({
+        id: msg.id,
+        type: msg.type,
+        content: msg.content,
+        timestamp: new Date(msg.timestamp),
+        audioUrl: msg.audio_url,
+        audioDuration: msg.audio_duration,
+        metadata: msg.metadata
+      }))
+      
+      // 更新选中对话的消息
+      if (selectedConversationDetail.value) {
+        selectedConversationDetail.value.messages = messages
+        console.log('✅ 消息加载成功:', messages.length, '条消息')
+      }
+    }
+  } catch (error) {
+    console.error('❌ 加载消息失败:', error)
+    ElMessage.error('加载消息失败')
+  }
 }
 
 const closeDetailDialog = () => {
@@ -669,8 +737,14 @@ const goToHome = () => {
 }
 
 const getLastMessage = (conversation) => {
+  // 优先使用后端返回的最后消息内容
+  if (conversation.lastMessageContent) {
+    return conversation.lastMessageContent.slice(0, 100) + (conversation.lastMessageContent.length > 100 ? '...' : '')
+  }
+  
+  // 降级方案：从messages数组获取
   const lastMessage = conversation.messages[conversation.messages.length - 1]
-  return lastMessage ? lastMessage.content.slice(0, 100) + (lastMessage.content.length > 100 ? '...' : '') : ''
+  return lastMessage ? lastMessage.content.slice(0, 100) + (lastMessage.content.length > 100 ? '...' : '') : '暂无消息'
 }
 
 const formatTime = (timestamp) => {
@@ -690,6 +764,19 @@ const formatRelativeTime = (timestamp) => {
 }
 
 const formatDuration = (conversation) => {
+  // 优先使用后端返回的对话时长（秒）
+  if (conversation.conversationDuration !== undefined) {
+    const totalMinutes = Math.floor(conversation.conversationDuration / 60)
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+    
+    if (hours > 0) {
+      return `${hours}小时${minutes}分钟`
+    }
+    return `${minutes}分钟`
+  }
+  
+  // 降级方案：使用时间差计算
   const start = new Date(conversation.startTime)
   const end = new Date(conversation.lastUpdate)
   const diff = end - start

@@ -3,6 +3,8 @@ package chat
 import (
 	"context"
 
+	"ai-roleplay/services/chat/api/internal/converter"
+	"ai-roleplay/services/chat/api/internal/repo"
 	"ai-roleplay/services/chat/api/internal/svc"
 	"ai-roleplay/services/chat/api/internal/types"
 
@@ -25,7 +27,48 @@ func NewGetMessagesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetMe
 }
 
 func (l *GetMessagesLogic) GetMessages(req *types.MessageListRequest) (resp *types.MessageListResponse, err error) {
-	// todo: add your logic here and delete this line
+	// 参数验证
+	if req.ConversationID <= 0 {
+		return &types.MessageListResponse{
+			Code: 400,
+			Msg:  "对话ID无效",
+		}, nil
+	}
 
-	return
+	// 创建repo实例
+	chatRepo := repo.NewChatServiceRepo(l.ctx, l.svcCtx)
+
+	// 获取消息列表
+	messages, total, err := chatRepo.GetMessages(req)
+	if err != nil {
+		l.Logger.Error("GetMessages failed: ", err)
+		return &types.MessageListResponse{
+			Code: 500,
+			Msg:  "获取消息列表失败",
+		}, nil
+	}
+
+	// 转换数据格式
+	converter := converter.NewChatConverter()
+	messageList := converter.ToMessageList(messages)
+
+	// 计算分页信息
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+	pageSize := req.PageSize
+	if pageSize <= 0 {
+		pageSize = 50
+	}
+	hasMore := int64(page*pageSize) < total
+
+	return &types.MessageListResponse{
+		Code:     0,
+		Msg:      "获取成功",
+		Messages: messageList,
+		Total:    total,
+		Page:     page,
+		HasMore:  hasMore,
+	}, nil
 }
