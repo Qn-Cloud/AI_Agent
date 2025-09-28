@@ -115,11 +115,22 @@ export const useChatStore = defineStore('chat', {
         const response = await chatApiService.getChatHistoryBefore(1)
         
         if (response && response.data) {
-          this.groupedHistory = {
-            todays: Array.isArray(response.data.todays) ? response.data.todays : [],
-            yesterdays: Array.isArray(response.data.yesterdays) ? response.data.yesterdays : [],
-            befores: Array.isArray(response.data.befores) ? response.data.befores : []
+          // 使用Vue 3的响应式方式，强制触发更新
+          const newHistory = {
+            todays: Array.isArray(response.data.todays) ? [...response.data.todays] : [],
+            yesterdays: Array.isArray(response.data.yesterdays) ? [...response.data.yesterdays] : [],
+            befores: Array.isArray(response.data.befores) ? [...response.data.befores] : []
           }
+          
+          // 强制替换整个对象
+          this.groupedHistory = newHistory
+          
+          console.log('✅ 强制更新groupedHistory:', this.groupedHistory)
+          console.log('✅ 数据长度检查:', {
+            todays: this.groupedHistory.todays.length,
+            yesterdays: this.groupedHistory.yesterdays.length,
+            befores: this.groupedHistory.befores.length
+          })
         }
         
       } catch (error) {

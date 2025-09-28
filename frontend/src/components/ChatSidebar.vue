@@ -16,87 +16,87 @@
       <!-- 历史记录列表 -->
       <div v-else class="history-groups">
         <!-- 今天 -->
-        <div v-if="chatStore.groupedHistory.todays.length > 0" class="history-group">
+        <div v-if="groupedConversations.todays.length > 0" class="history-group">
           <div class="group-header">
             <h3>今天</h3>
-            <span class="group-count">{{ chatStore.groupedHistory.todays.length }}</span>
+            <span class="group-count">{{ groupedConversations.todays.length }}</span>
           </div>
           <div class="group-items">
             <div
-              v-for="item in chatStore.groupedHistory.todays"
-              :key="item.conversation_id"
+              v-for="item in groupedConversations.todays"
+              :key="item.id"
               class="history-item"
               @click="selectConversation(item)"
             >
               <div class="item-avatar">
                 <img
-                  :src="getCharacterAvatar(item.character_id)"
-                  :alt="item.character_name"
+                  :src="getCharacterAvatar(item.characterId)"
+                  :alt="characterMap[item.characterId]?.name"
                   class="character-avatar"
                   @error="handleImageError"
                 />
               </div>
               <div class="item-content">
-                <div class="item-title">{{ item.character_name }}</div>
-                <div class="item-time">{{ formatTime(item.created_at) }}</div>
+                <div class="item-title">{{ item.title || characterMap[item.characterId]?.name }}</div>
+                <div class="item-time">{{ formatTime(item.lastUpdate) }}</div>
               </div>
             </div>
           </div>
         </div>
 
         <!-- 昨天 -->
-        <div v-if="chatStore.groupedHistory.yesterdays.length > 0" class="history-group">
+        <div v-if="groupedConversations.yesterdays.length > 0" class="history-group">
           <div class="group-header">
             <h3>昨天</h3>
-            <span class="group-count">{{ chatStore.groupedHistory.yesterdays.length }}</span>
+            <span class="group-count">{{ groupedConversations.yesterdays.length }}</span>
           </div>
           <div class="group-items">
             <div
-              v-for="item in chatStore.groupedHistory.yesterdays"
-              :key="item.conversation_id"
+              v-for="item in groupedConversations.yesterdays"
+              :key="item.id"
               class="history-item"
               @click="selectConversation(item)"
             >
               <div class="item-avatar">
                 <img
-                  :src="getCharacterAvatar(item.character_id)"
-                  :alt="item.character_name"
+                  :src="getCharacterAvatar(item.characterId)"
+                  :alt="characterMap[item.characterId]?.name"
                   class="character-avatar"
                   @error="handleImageError"
                 />
               </div>
               <div class="item-content">
-                <div class="item-title">{{ item.character_name }}</div>
-                <div class="item-time">{{ formatTime(item.created_at) }}</div>
+                <div class="item-title">{{ item.title || characterMap[item.characterId]?.name }}</div>
+                <div class="item-time">{{ formatTime(item.lastUpdate) }}</div>
               </div>
             </div>
           </div>
         </div>
 
         <!-- 更久之前 -->
-        <div v-if="chatStore.groupedHistory.befores.length > 0" class="history-group">
+        <div v-if="groupedConversations.befores.length > 0" class="history-group">
           <div class="group-header">
             <h3>更久之前</h3>
-            <span class="group-count">{{ chatStore.groupedHistory.befores.length }}</span>
+            <span class="group-count">{{ groupedConversations.befores.length }}</span>
           </div>
           <div class="group-items">
             <div
-              v-for="item in chatStore.groupedHistory.befores"
-              :key="item.conversation_id"
+              v-for="item in groupedConversations.befores"
+              :key="item.id"
               class="history-item"
               @click="selectConversation(item)"
             >
               <div class="item-avatar">
                 <img
-                  :src="getCharacterAvatar(item.character_id)"
-                  :alt="item.character_name"
+                  :src="getCharacterAvatar(item.characterId)"
+                  :alt="characterMap[item.characterId]?.name"
                   class="character-avatar"
                   @error="handleImageError"
                 />
               </div>
               <div class="item-content">
-                <div class="item-title">{{ item.character_name }}</div>
-                <div class="item-time">{{ formatTime(item.created_at) }}</div>
+                <div class="item-title">{{ item.title || characterMap[item.characterId]?.name }}</div>
+                <div class="item-time">{{ formatTime(item.lastUpdate) }}</div>
               </div>
             </div>
           </div>
@@ -116,7 +116,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useChatStore } from '../stores/chat'
 import { useCharacterStore } from '../stores/character'
@@ -137,17 +137,51 @@ const characterMap = {
   6: { id: 6, name: '赫敏·格兰杰', avatar: '/images/avatars/hermione.jpg' }
 }
 
+// 响应式数据
 // 计算属性
 const hasAnyHistory = computed(() => {
-  return chatStore.groupedHistory.todays.length > 0 ||
-         chatStore.groupedHistory.yesterdays.length > 0 ||
-         chatStore.groupedHistory.befores.length > 0
+  return chatStore.conversations && chatStore.conversations.length > 0
+})
+
+// 根据时间分组对话（使用现有的conversations数据）
+const groupedConversations = computed(() => {
+  if (!chatStore.conversations || chatStore.conversations.length === 0) {
+    return {
+      todays: [],
+      yesterdays: [],
+      befores: []
+    }
+  }
+
+  const now = new Date()
+  const today = now.toDateString()
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toDateString()
+
+  const groups = {
+    todays: [],
+    yesterdays: [],
+    befores: []
+  }
+
+  chatStore.conversations.forEach(conv => {
+    const convDate = new Date(conv.lastUpdate || conv.createdAt).toDateString()
+    
+    if (convDate === today) {
+      groups.todays.push(conv)
+    } else if (convDate === yesterday) {
+      groups.yesterdays.push(conv)
+    } else {
+      groups.befores.push(conv)
+    }
+  })
+
+  return groups
 })
 
 // 方法
 const refreshHistory = async () => {
   try {
-    await chatStore.loadGroupedHistory()
+    await chatStore.initializeData() // 使用与History页面相同的方法
     ElMessage.success('历史记录已刷新')
   } catch (error) {
     ElMessage.error('刷新失败: ' + error.message)
@@ -160,16 +194,16 @@ const selectConversation = (item) => {
   router.push({
     name: 'Chat',
     params: {
-      characterId: item.character_id
+      characterId: item.characterId // conversations数据结构使用characterId
     },
     query: {
-      conversationId: item.conversation_id
+      conversationId: item.id // conversations数据结构使用id
     }
   })
 }
 
 const getCharacterAvatar = (characterId) => {
-  return characterMap[characterId]?.avatar || '/images/avatars/harry-potter.jpg' // 使用哈利波特作为默认头像
+  return characterMap[characterId]?.avatar || '/images/avatars/harry-potter.jpg'
 }
 
 const handleImageError = (event) => {
@@ -212,7 +246,7 @@ const goToDiscover = () => {
 
 // 生命周期
 onMounted(() => {
-  chatStore.loadGroupedHistory()
+  chatStore.initializeData() // 使用与History页面相同的方法
 })
 </script>
 

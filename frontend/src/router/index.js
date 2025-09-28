@@ -4,6 +4,7 @@ import Chat from '../views/Chat.vue'
 import History from '../views/History.vue'
 import Settings from '../views/Settings.vue'
 import ApiTest from '../views/ApiTest.vue'
+import CharacterEditor from '../components/CharacterEditor.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -62,6 +63,14 @@ const router = createRouter({
       component: ApiTest,
       meta: {
         title: 'API测试'
+      }
+    },
+    {
+      path: '/character-editor',
+      name: 'character-editor',
+      component: CharacterEditor,
+      meta: {
+        title: '角色编辑'
       }
     }
   ]

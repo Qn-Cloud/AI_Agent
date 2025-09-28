@@ -42,8 +42,14 @@ export const characterApiService = {
   },
 
   // 获取角色分类
-  getCharacterCategories() {
-    return characterApi.get('/api/character/categories')
+  async getCharacterCategories() {
+    try {
+      const response = await characterApi.get('/api/character/categories')
+      return response.data
+    } catch (error) {
+      console.error('❌ 获取角色分类失败:', error)
+      throw error
+    }
   },
 
   // 获取热门角色
@@ -57,41 +63,40 @@ export const characterApiService = {
   },
 
   // 获取角色标签
-  getCharacterTags() {
-    return characterApi.get('/api/character/tags')
+  async getCharacterTags() {
+    try {
+      const response = await characterApi.get('/api/character/tags')
+      return response.data
+    } catch (error) {
+      console.error('❌ 获取角色标签失败:', error)
+      throw error
+    }
   },
 
-  // 创建角色（需要认证）
-  createCharacter(data) {
-    return characterApi.post('/api/character', {
-      name: data.name,
-      avatar: data.avatar,
-      description: data.description,
-      short_desc: data.shortDesc,
-      category_id: data.categoryId,
-      tags: data.tags,
-      prompt: data.prompt,
-      personality: data.personality,
-      voice_settings: data.voiceSettings,
-      is_public: data.isPublic
-    })
+  // 创建角色
+  async createCharacter(characterData) {
+    try {
+      console.log('📤 创建角色:', characterData)
+      const response = await characterApi.post('/api/character', characterData)
+      console.log('✅ 角色创建成功:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('❌ 创建角色失败:', error)
+      throw error
+    }
   },
 
-  // 更新角色（需要认证）
-  updateCharacter(id, data) {
-    return characterApi.put(`/api/character/${id}`, {
-      name: data.name,
-      avatar: data.avatar,
-      description: data.description,
-      short_desc: data.shortDesc,
-      category_id: data.categoryId,
-      tags: data.tags,
-      prompt: data.prompt,
-      personality: data.personality,
-      voice_settings: data.voiceSettings,
-      status: data.status,
-      is_public: data.isPublic
-    })
+  // 更新角色
+  async updateCharacter(id, characterData) {
+    try {
+      console.log('📤 更新角色:', id, characterData)
+      const response = await characterApi.put(`/api/character/${id}`, characterData)
+      console.log('✅ 角色更新成功:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('❌ 更新角色失败:', error)
+      throw error
+    }
   },
 
   // 删除角色（需要认证）
