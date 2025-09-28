@@ -341,6 +341,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCharacterStore } from '../stores/character'
 import { useChatStore } from '../stores/chat'
+import { chatApiService } from '../services'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, ChatDotRound, Timer, User, Calendar } from '@element-plus/icons-vue'
 
@@ -589,10 +590,13 @@ const handlePageChange = (page) => {
 }
 
 const openConversation = async (conversation) => {
+  console.log('🎯 openConversation 被调用:', conversation)
+  
   selectedConversationDetail.value = { ...conversation }
   showDetailDialog.value = true
   
   // 加载消息详情
+  console.log('📞 准备调用 loadConversationMessages, conversationId:', conversation.id)
   await loadConversationMessages(conversation.id)
 }
 
@@ -600,11 +604,15 @@ const openConversation = async (conversation) => {
 const loadConversationMessages = async (conversationId) => {
   try {
     console.log('🔍 加载对话消息:', conversationId)
+    console.log('🔍 chatApiService:', chatApiService)
+    console.log('🔍 chatApiService.getMessages:', chatApiService.getMessages)
     
     const response = await chatApiService.getMessages(conversationId, {
       page: 1,
       pageSize: 100 // 加载更多消息
     })
+    
+    console.log('🔍 API响应:', response)
     
     if (response && response.data && response.data.messages) {
       // 转换消息格式

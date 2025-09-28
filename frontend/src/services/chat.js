@@ -47,13 +47,20 @@ export const chatApiService = {
 
   // 获取对话消息历史
   getMessages(conversationId, params = {}) {
+    const requestParams = {
+      conversation_id: conversationId,
+      page: params.page || 1,
+      page_size: params.pageSize || 50,
+      before_id: params.beforeId // 用于分页
+    }
+    
+    console.log('📤 发送getMessages请求:', {
+      url: '/api/chat/messages',
+      params: requestParams
+    })
+    
     return chatApi.get('/api/chat/messages', {
-      params: {
-        conversation_id: conversationId,
-        page: params.page || 1,
-        page_size: params.pageSize || 50,
-        before_id: params.beforeId // 用于分页
-      }
+      params: requestParams
     })
   },
 
