@@ -61,5 +61,9 @@ service chat-api {
 	@doc "获取对话历史"
 	@handler getConversationHistory
 	post /api/chat/history (getConversationHistoryRequest) returns (getConversationHistoryResponse)
+
+	@doc "发送消息并获取SSE流式响应"
+	@handler ChatSendHandler
+	post /api/chat/send (ChatSendRequest)
 }
 

@@ -345,7 +345,7 @@ export const useChatStore = defineStore('chat', {
       }
     },
 
-    // 发送消息
+    // 发送消息 (支持SSE实时更新)
     async sendMessage(content, type = 'text') {
       if (!this.currentConversation) {
         throw new Error('没有选中的对话')
@@ -364,35 +364,147 @@ export const useChatStore = defineStore('chat', {
         // 添加用户消息
         this.currentConversation.messages.push(userMessage)
         
-        // 发送到后端
-        const response = await chatApi.sendMessage({
+        // 创建AI回复消息占位符
+        const aiMessage = {
+          id: `ai-${Date.now()}`,
+          type: 'ai',
+          content: '',
+          timestamp: new Date(),
+          isStreaming: true // 标记为流式回复
+        }
+        
+        this.currentConversation.messages.push(aiMessage)
+        
+        // 发送到后端 (SSE方式)
+        const response = await this.sendMessageSSE({
           conversationId: this.currentConversation.id,
           characterId: this.currentConversation.characterId,
           content,
           type
+        }, (partialContent) => {
+          // 实时更新AI回复内容
+          const messageIndex = this.currentConversation.messages.findIndex(msg => msg.id === aiMessage.id)
+          if (messageIndex !== -1) {
+            this.currentConversation.messages[messageIndex].content = partialContent
+          }
         })
         
         if (response && response.data) {
-          // 添加AI回复
-          const aiMessage = {
-            id: response.data.ai_message.id,
-            type: 'ai',
-            content: response.data.ai_message.content,
-            timestamp: new Date(response.data.ai_message.timestamp)
+          // 更新最终的AI回复
+          const messageIndex = this.currentConversation.messages.findIndex(msg => msg.id === aiMessage.id)
+          if (messageIndex !== -1) {
+            this.currentConversation.messages[messageIndex] = {
+              id: response.data.ai_message.id,
+              type: 'ai',
+              content: response.data.ai_message.content,
+              timestamp: new Date(response.data.ai_message.timestamp),
+              isStreaming: false
+            }
           }
           
-          this.currentConversation.messages.push(aiMessage)
           this.currentConversation.lastUpdate = new Date()
-          
-          return aiMessage
+          return this.currentConversation.messages[messageIndex]
         }
       } catch (error) {
         this.error = error.message
         console.error('发送消息失败:', error)
+        
+        // 移除失败的AI消息占位符
+        const aiMessageIndex = this.currentConversation.messages.findIndex(
+          msg => msg.type === 'ai' && msg.isStreaming
+        )
+        if (aiMessageIndex !== -1) {
+          this.currentConversation.messages.splice(aiMessageIndex, 1)
+        }
+        
         throw error
       } finally {
         this.isLoading = false
       }
+    },
+
+    // SSE发送消息的具体实现
+    async sendMessageSSE(data, onUpdate) {
+      return new Promise((resolve, reject) => {
+        const baseURL = chatApi.defaults?.baseURL || ''
+        const url = `${baseURL}/api/chat/send`
+        
+        const requestData = {
+          conversation_id: data.conversationId,
+          character_id: data.characterId,
+          content: data.content,
+          type: data.type || 'text',
+          user_id: 1 // 暂时固定为1
+        }
+        
+        console.log('📤 发送SSE聊天请求:', requestData)
+        
+        // 创建EventSource连接
+        const eventSource = new EventSource(url + '?' + new URLSearchParams(requestData))
+        
+        let aiResponse = ''
+        let messageId = null
+        let isComplete = false
+        
+        eventSource.onopen = () => {
+          console.log('🔗 SSE连接已建立')
+        }
+        
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data)
+            console.log('📨 收到SSE消息:', data)
+            
+            if (data.type === 'message') {
+              // 接收到AI回复的片段
+              aiResponse += data.content
+              messageId = data.message_id
+              
+              // 触发实时更新回调
+              if (onUpdate) {
+                onUpdate(aiResponse)
+              }
+            } else if (data.type === 'complete') {
+              // 回复完成
+              isComplete = true
+              eventSource.close()
+              
+              resolve({
+                data: {
+                  ai_message: {
+                    id: messageId || `ai-${Date.now()}`,
+                    content: aiResponse,
+                    timestamp: new Date().toISOString()
+                  }
+                }
+              })
+            } else if (data.type === 'error') {
+              // 发生错误
+              eventSource.close()
+              reject(new Error(data.message || '聊天请求失败'))
+            }
+          } catch (error) {
+            console.error('❌ 解析SSE消息失败:', error, event.data)
+          }
+        }
+        
+        eventSource.onerror = (error) => {
+          console.error('❌ SSE连接错误:', error)
+          eventSource.close()
+          
+          if (!isComplete) {
+            reject(new Error('连接中断'))
+          }
+        }
+        
+        // 设置超时
+        setTimeout(() => {
+          if (!isComplete) {
+            eventSource.close()
+            reject(new Error('请求超时'))
+          }
+        }, 60000) // 60秒超时
+      })
     },
 
     // 开始录音

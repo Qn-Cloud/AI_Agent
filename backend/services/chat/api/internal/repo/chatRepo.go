@@ -471,3 +471,14 @@ func (r *ChatServiceRepo) GetConversationMessages(conversationID int64) ([]model
 
 	return messages, nil
 }
+
+func (r *ChatServiceRepo) AddMessage(message *model.Message) (int64, error) {
+	db := r.svcCtx.Db.WithContext(r.ctx)
+
+	if err := db.Create(message).Error; err != nil {
+		r.Logger.Error("AddMessage failed: ", err)
+		return 0, err
+	}
+
+	return message.ID, nil
+}

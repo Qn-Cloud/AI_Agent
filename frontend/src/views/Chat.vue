@@ -91,11 +91,15 @@
               </div>
             </div>
             <div class="message-content">
-              <div class="message-bubble">
-                <div class="message-text">{{ message.content }}</div>
+              <div class="message-bubble" :class="{ 'streaming': message.isStreaming }">
+                <div class="message-text">
+                  {{ message.content }}
+                  <span v-if="message.isStreaming" class="streaming-cursor">|</span>
+                </div>
               </div>
               <div class="message-time">
                 {{ formatMessageTime(message.timestamp) }}
+                <span v-if="message.isStreaming" class="streaming-status">正在输入...</span>
               </div>
             </div>
           </div>
@@ -280,10 +284,17 @@ const sendQuickMessage = async (message) => {
 
 const sendTextMessage = async () => {
   if (!textInput.value.trim()) return
+  
+  console.log('🚀 开始发送消息:', textInput.value.trim())
+  console.log('📋 当前对话:', chatStore.currentConversation)
+  console.log('🎭 当前角色:', currentCharacter.value)
+  
   try {
     await chatStore.sendMessage(textInput.value.trim())
     textInput.value = ''
+    console.log('✅ 消息发送成功')
   } catch (error) {
+    console.error('❌ 消息发送失败:', error)
     ElMessage.error('发送消息失败: ' + error.message)
   }
 }
@@ -568,10 +579,23 @@ onMounted(() => {
             background: #f5f5f5;
             border-radius: 16px;
             padding: 12px 16px;
+            
+            &.streaming {
+              background: linear-gradient(90deg, #f5f5f5 0%, #e8f4fd 50%, #f5f5f5 100%);
+              background-size: 200% 100%;
+              animation: streamingGlow 2s ease-in-out infinite;
+            }
 
             .message-text {
               line-height: 1.5;
               word-break: break-word;
+              
+              .streaming-cursor {
+                display: inline-block;
+                animation: blink 1s infinite;
+                font-weight: bold;
+                color: #4A90E2;
+              }
             }
           }
 
@@ -580,6 +604,12 @@ onMounted(() => {
             color: #999;
             margin-top: 4px;
             text-align: center;
+            
+            .streaming-status {
+              color: #4A90E2;
+              font-style: italic;
+              margin-left: 8px;
+            }
           }
         }
       }
@@ -810,5 +840,47 @@ onMounted(() => {
       font-size: 20px;
     }
   }
+
+// 流式回复动画效果
+@keyframes streamingGlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+// 流式回复样式
+.message-bubble.streaming {
+  background: linear-gradient(90deg, #f5f5f5 0%, #e8f4fd 50%, #f5f5f5 100%) !important;
+  background-size: 200% 100%;
+  animation: streamingGlow 2s ease-in-out infinite;
+}
+
+.streaming-cursor {
+  display: inline-block;
+  animation: blink 1s infinite;
+  font-weight: bold;
+  color: #4A90E2;
+}
+
+.streaming-status {
+  color: #4A90E2;
+  font-style: italic;
+  margin-left: 8px;
+}
 }
 </style>

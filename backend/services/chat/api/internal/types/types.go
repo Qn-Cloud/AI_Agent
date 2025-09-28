@@ -12,6 +12,26 @@ type BatchDeleteRequest struct {
 	ConversationIDs []int64 `json:"conversation_ids"`
 }
 
+type ChatSSEEvent struct {
+	Type           string `json:"type"`                      // 事件类型：message/error/done/thinking
+	Content        string `json:"content,omitempty"`         // 完整内容（累积）
+	Delta          string `json:"delta,omitempty"`           // 增量内容（本次新增）
+	Done           bool   `json:"done,omitempty"`            // 是否完成
+	Error          string `json:"error,omitempty"`           // 错误信息
+	MessageId      int64  `json:"message_id,omitempty"`      // 保存后的消息ID
+	TokensIn       int64  `json:"tokens_in,omitempty"`       // 输入token数
+	TokensOut      int64  `json:"tokens_out,omitempty"`      // 输出token数
+	LatencyMs      int64  `json:"latency_ms,omitempty"`      // 响应延迟
+	ConversationID int64  `json:"conversation_id,omitempty"` // 对话ID
+}
+
+type ChatSendRequest struct {
+	CharacterID    int64  `json:"character_id"`
+	ConversationId int64  `json:"conversation_id"`
+	MessageType    int64  `json:"message_type"`
+	Content        string `json:"content"`
+}
+
 type Conversation struct {
 	ID              int64     `json:"id"`
 	UserID          int64     `json:"user_id,omitempty"`
