@@ -29,7 +29,7 @@ func NewGetConversationHistoryLogic(ctx context.Context, svcCtx *svc.ServiceCont
 }
 
 func (l *GetConversationHistoryLogic) GetConversationHistory(req *types.GetConversationHistoryRequest) (resp *types.GetConversationHistoryResponse, err error) {
-	fmt.Println("req: ", req)
+	fmt.Printf("req: %+v\n", req)
 	// 创建repo实例
 	chatRepo := repo.NewChatServiceRepo(l.ctx, l.svcCtx)
 
@@ -39,6 +39,7 @@ func (l *GetConversationHistoryLogic) GetConversationHistory(req *types.GetConve
 		l.Logger.Error("GetConversationHistory failed: ", err)
 		return nil, err
 	}
+	fmt.Printf("conversations: %+v\n", conversations)
 	result := []types.ConversationHistoryItem{}
 	var messageCount int
 	characterSet := map[int64]bool{}
