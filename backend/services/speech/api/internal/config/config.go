@@ -10,67 +10,67 @@ type Config struct {
 	rest.RestConf
 
 	// 语音服务配置
-	Speech SpeechConfig `yaml:"Speech"`
+	Speech SpeechConfig
 
 	// 第三方服务配置
-	External ExternalConfig `yaml:"External"`
+	External ExternalConfig
 }
 
 // 语音服务配置
 type SpeechConfig struct {
-	ASR     ASRConfig     `yaml:"ASR"`
-	TTS     TTSConfig     `yaml:"TTS"`
-	Storage StorageConfig `yaml:"Storage"`
+	ASR     ASRConfig
+	TTS     TTSConfig
+	Storage StorageConfig
 }
 
 // ASR配置
 type ASRConfig struct {
-	Provider         string        `yaml:"Provider"`
-	Timeout          time.Duration `yaml:"Timeout"`
-	MaxDuration      time.Duration `yaml:"MaxDuration"`
-	SupportedFormats []string      `yaml:"SupportedFormats"`
+	Provider         string
+	Timeout          time.Duration
+	MaxDuration      time.Duration
+	SupportedFormats []string
 }
 
 // TTS配置
 type TTSConfig struct {
-	Provider         string        `yaml:"Provider"`
-	Timeout          time.Duration `yaml:"Timeout"`
-	MaxTextLength    int           `yaml:"MaxTextLength"`
-	DefaultFormat    string        `yaml:"DefaultFormat"`
-	SupportedFormats []string      `yaml:"SupportedFormats"`
+	Provider         string
+	Timeout          time.Duration
+	MaxTextLength    int
+	DefaultFormat    string
+	SupportedFormats []string
 }
 
 // 存储配置
 type StorageConfig struct {
-	Type      string `yaml:"Type"`
-	BaseURL   string `yaml:"BaseURL"`
-	LocalPath string `yaml:"LocalPath"`
+	Type      string
+	BaseURL   string
+	LocalPath string
 }
 
 // 第三方服务配置
 type ExternalConfig struct {
-	Baidu   BaiduConfig   `yaml:"Baidu"`
-	Tencent TencentConfig `yaml:"Tencent"`
-	Aliyun  AliyunConfig  `yaml:"Aliyun"`
+	Baidu   BaiduConfig
+	Tencent TencentConfig
+	Aliyun  AliyunConfig
 }
 
 // 百度AI配置
 type BaiduConfig struct {
-	AppID     string `yaml:"AppID"`
-	APIKey    string `yaml:"APIKey"`
-	SecretKey string `yaml:"SecretKey"`
+	AppID     string
+	APIKey    string
+	SecretKey string
 }
 
 // 腾讯云配置
 type TencentConfig struct {
-	SecretID  string `yaml:"SecretID"`
-	SecretKey string `yaml:"SecretKey"`
-	Region    string `yaml:"Region"`
+	SecretID  string
+	SecretKey string
+	Region    string
 }
 
 // 阿里云配置
 type AliyunConfig struct {
-	AccessKeyID     string `yaml:"AccessKeyID"`
-	AccessKeySecret string `yaml:"AccessKeySecret"`
-	Region          string `yaml:"Region"`
+	AccessKeyID     string
+	AccessKeySecret string
+	Region          string
 }
