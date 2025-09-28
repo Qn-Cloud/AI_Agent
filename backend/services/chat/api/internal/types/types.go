@@ -12,6 +12,16 @@ type BatchDeleteRequest struct {
 	ConversationIDs []int64 `json:"conversation_ids"`
 }
 
+type ChatBeforeRequest struct {
+	UserId int64 `form:"user_id"`
+}
+
+type ChatBeforeResponse struct {
+	Todays     []HistoryItem `json:"todays,omitempty"`
+	Yesterdays []HistoryItem `json:"yesterdays,omitempty"`
+	Befores    []HistoryItem `json:"befores,omitempty"`
+}
+
 type ChatSSEEvent struct {
 	Type           string `json:"type"`                      // 事件类型：message/error/done/thinking
 	Content        string `json:"content,omitempty"`         // 完整内容（累积）
@@ -98,6 +108,13 @@ type ExportResponse struct {
 	Data     string `json:"data"`     // 导出的数据内容
 	Format   string `json:"format"`   // 导出格式 json/txt/csv
 	Filename string `json:"filename"` // 建议的文件名
+}
+
+type HistoryItem struct {
+	ConversationID int64  `json:"conversation_id,omitempty"` // 对话ID
+	CharacterID    int64  `json:"character_id"`
+	CharacterName  string `json:"character_name"`
+	CreatedAt      string `json:"created_at"`
 }
 
 type Message struct {

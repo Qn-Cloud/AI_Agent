@@ -16,6 +16,12 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	server.AddRoutes(
 		[]rest.Route{
 			{
+				// 侧边栏历史
+				Method:  http.MethodGet,
+				Path:    "/api/chat/before",
+				Handler: chat.ChatHistoryBeforeHandler(serverCtx),
+			},
+			{
 				// 创建新对话
 				Method:  http.MethodPost,
 				Path:    "/api/chat/conversation",

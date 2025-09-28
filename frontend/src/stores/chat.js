@@ -18,35 +18,29 @@ const getCharacterName = (id) => {
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
-    // 当前对话
-    currentConversation: null,
-    // 所有对话历史（初始为空，从后端加载）
     conversations: [],
-    // 统计数据（从后端获取）
+    currentConversation: null,
+    isLoading: false,
+    error: null,
+    
+    // 语音相关状态
+    isRecording: false,
+    isPlaying: false,
+    currentAudioUrl: null,
+    
+    // 统计数据
     stats: {
-      conversationTotal: 0,
       messageCount: 0,
       characterCount: 0,
       activeDays: 0
     },
-    // 语音交互状态
-    isRecording: false,
-    isSpeaking: false,
-    isLoading: false,
-    // 临时录音文本
-    transcript: '',
-    // 语音设置
-    voiceSettings: {
-      volume: 80,
-      rate: 1.0,
-      pitch: 1.0,
-      voice: null
-    },
-    // 语音控制器实例
-    voiceRecorder: null,
-    voicePlayer: null,
-    // 错误状态
-    error: null
+    
+    // 分组历史数据
+    groupedHistory: {
+      todays: [],
+      yesterdays: [],
+      befores: []
+    }
   }),
 
   getters: {
@@ -113,7 +107,33 @@ export const useChatStore = defineStore('chat', {
       }
     },
 
-    // 从后端加载对话历史
+    // 加载分组的对话历史
+    async loadGroupedHistory() {
+      try {
+        this.isLoading = true
+        console.log('🔄 开始加载分组对话历史...')
+        
+        const response = await chatApiService.getChatHistoryBefore(1) // 暂时固定用户ID为1
+        
+        if (response.code === 0 && response.data) {
+          this.groupedHistory = {
+            todays: response.data.todays || [],
+            yesterdays: response.data.yesterdays || [],
+            befores: response.data.befores || []
+          }
+          console.log('✅ 分组对话历史加载成功:', this.groupedHistory)
+        } else {
+          console.warn('⚠️ 分组对话历史响应格式异常:', response)
+        }
+      } catch (error) {
+        this.error = error.message
+        console.error('❌ 加载分组对话历史失败:', error)
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    // 加载对话历史
     async loadConversationHistory(params = {}) {
       try {
         this.isLoading = true

@@ -194,3 +194,21 @@ type  ChatSSEEvent {
 		LatencyMs      int64  `json:"latency_ms,omitempty"` // 响应延迟
 		ConversationID int64  `json:"conversation_id,omitempty"` // 对话ID
 	}
+
+
+type ChatBeforeRequest {
+    userId int64 `form:"user_id"`
+}
+
+type HistoryItem {
+	ConversationID int64  `json:"conversation_id,omitempty"` // 对话ID
+    CharacterID int64 `json:"character_id"`
+    CharacterName string `json:"character_name"`
+    CreatedAt string `json:"created_at"`
+}
+
+type ChatBeforeResponse {
+    Todays []HistoryItem `json:"todays,omitempty"`
+    Yesterdays  []HistoryItem `json:"yesterdays,omitempty"`
+    Befores  []HistoryItem `json:"befores,omitempty"`
+}

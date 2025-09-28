@@ -103,8 +103,25 @@ export const chatApiService = {
     return chatApi.get(`/api/chat/conversation/${id}`)
   },
 
+  // 获取分组的对话历史（今天/昨天/更久之前）
+  async getChatHistoryBefore(userId = 1) {
+    try {
+      console.log('📤 获取分组对话历史，用户ID:', userId)
+      const response = await chatApi.get('/api/chat/before', {
+        params: {
+          user_id: userId
+        }
+      })
+      console.log('✅ 获取分组对话历史成功:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('❌ 获取分组对话历史失败:', error)
+      throw error
+    }
+  },
+
   // 获取对话历史
-  getConversationHistory(params = {}) {
+  async getConversationHistory(params = {}) {
     const requestData = {
       page: params.page || 1,
       page_size: params.pageSize || 20,
