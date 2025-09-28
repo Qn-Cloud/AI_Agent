@@ -91,7 +91,9 @@ func (l *GetConversationHistoryLogic) GetConversationHistory(req *types.GetConve
 			return result[i].CharacterID > result[j].CharacterID
 		}
 	}
-	sort.Slice(result, switchFunc)
+	if switchFunc != nil {
+		sort.Slice(result, switchFunc)
+	}
 
 	return &types.GetConversationHistoryResponse{
 		List:              result,
