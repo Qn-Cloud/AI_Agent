@@ -2,6 +2,7 @@ package chat
 
 import (
 	"context"
+	"fmt"
 	"sort"
 
 	common "ai-roleplay/common/utils"
@@ -28,6 +29,7 @@ func NewGetConversationHistoryLogic(ctx context.Context, svcCtx *svc.ServiceCont
 }
 
 func (l *GetConversationHistoryLogic) GetConversationHistory(req *types.GetConversationHistoryRequest) (resp *types.GetConversationHistoryResponse, err error) {
+	fmt.Println("req: ", req)
 	// 创建repo实例
 	chatRepo := repo.NewChatServiceRepo(l.ctx, l.svcCtx)
 
@@ -94,7 +96,7 @@ func (l *GetConversationHistoryLogic) GetConversationHistory(req *types.GetConve
 	if switchFunc != nil {
 		sort.Slice(result, switchFunc)
 	}
-
+	fmt.Println("result: ", result)
 	return &types.GetConversationHistoryResponse{
 		List:              result,
 		ConversationTotal: int(total),
