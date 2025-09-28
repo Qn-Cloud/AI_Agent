@@ -475,6 +475,10 @@ func (r *ChatServiceRepo) GetConversationMessages(conversationID int64) ([]model
 func (r *ChatServiceRepo) AddMessage(message *model.Message) (int64, error) {
 	db := r.svcCtx.Db.WithContext(r.ctx)
 
+	if message.Type != common.AI_Role_User {
+		message.Type = "ai"
+	}
+
 	if err := db.Create(message).Error; err != nil {
 		r.Logger.Error("AddMessage failed: ", err)
 		return 0, err

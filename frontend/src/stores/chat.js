@@ -375,8 +375,8 @@ export const useChatStore = defineStore('chat', {
         
         this.currentConversation.messages.push(aiMessage)
         
-        // 发送到后端 (SSE方式)
-        const response = await this.sendMessageSSE({
+        // 发送到后端 (使用Fetch流式读取，更稳定)
+        const response = await this.sendMessageFetchStream({
           conversationId: this.currentConversation.id,
           characterId: this.currentConversation.characterId,
           content,
@@ -394,16 +394,25 @@ export const useChatStore = defineStore('chat', {
           const messageIndex = this.currentConversation.messages.findIndex(msg => msg.id === aiMessage.id)
           if (messageIndex !== -1) {
             this.currentConversation.messages[messageIndex] = {
+              ...this.currentConversation.messages[messageIndex], // 保留原有属性
               id: response.data.ai_message.id,
               type: 'ai',
               content: response.data.ai_message.content,
               timestamp: new Date(response.data.ai_message.timestamp),
-              isStreaming: false
+              isStreaming: false // 明确标记为完成
             }
+            console.log('✅ AI消息流式传输完成，设置 isStreaming = false')
           }
           
           this.currentConversation.lastUpdate = new Date()
           return this.currentConversation.messages[messageIndex]
+        } else {
+          // 如果没有收到完整响应，也要停止流式状态
+          const messageIndex = this.currentConversation.messages.findIndex(msg => msg.id === aiMessage.id)
+          if (messageIndex !== -1) {
+            this.currentConversation.messages[messageIndex].isStreaming = false
+            console.log('⚠️ 没有收到完整响应，但停止流式状态')
+          }
         }
       } catch (error) {
         this.error = error.message
@@ -423,11 +432,13 @@ export const useChatStore = defineStore('chat', {
       }
     },
 
-    // SSE发送消息的具体实现
-    async sendMessageSSE(data, onUpdate) {
+    // SSE发送消息的具体实现 (带重试机制)
+    async sendMessageSSE(data, onUpdate, retryCount = 0) {
+      const maxRetries = 2 // 最多重试2次
+      
       return new Promise((resolve, reject) => {
-        // 直接使用后端服务器地址，绕过代理问题
-        const backendURL = import.meta.env.DEV ? 'http://192.168.23.188:7001' : (chatApi.defaults?.baseURL || '')
+        // 使用前端代理，避免CORS问题
+        const backendURL = chatApi.defaults?.baseURL || ''
         
         const requestData = {
           conversation_id: data.conversationId,
@@ -437,10 +448,8 @@ export const useChatStore = defineStore('chat', {
           user_id: 1 // 暂时固定为1
         }
         
-        console.log('📤 发送SSE聊天请求到:', `${backendURL}/api/chat/send`)
+        console.log(`📤 发送SSE聊天请求到: ${backendURL}/api/chat/send (尝试 ${retryCount + 1}/${maxRetries + 1})`)
         console.log('📤 请求参数:', requestData)
-        console.log('🔍 开发环境:', import.meta.env.DEV)
-        console.log('🔍 使用后端URL:', backendURL)
         
         // 由于EventSource只支持GET请求，我们需要将参数作为查询参数
         const queryParams = new URLSearchParams(requestData).toString()
@@ -451,18 +460,43 @@ export const useChatStore = defineStore('chat', {
         // 创建EventSource连接
         const eventSource = new EventSource(url)
         
+        // 连接保活 - 防止浏览器关闭长连接
+        let keepAliveInterval
+        const startKeepAlive = () => {
+          keepAliveInterval = setInterval(() => {
+            if (eventSource.readyState === 1) {
+              console.log('🔄 SSE连接保活检查 - 连接正常')
+            } else {
+              console.warn('⚠️ SSE连接保活检查 - 连接异常:', eventSource.readyState)
+              clearInterval(keepAliveInterval)
+            }
+          }, 5000) // 每5秒检查一次
+        }
+        
         let aiResponse = ''
         let messageId = null
         let isComplete = false
+        let hasReceivedData = false // 标记是否收到过数据
         
-        eventSource.onopen = () => {
-          console.log('✅ SSE连接已建立')
-          console.log('🔍 EventSource readyState:', eventSource.readyState)
-          console.log('🔍 EventSource URL:', eventSource.url)
-        }
+                  eventSource.onopen = () => {
+            console.log('✅ SSE连接已建立')
+            console.log('🔍 EventSource readyState:', eventSource.readyState)
+            
+            // 监控连接状态
+            const monitorInterval = setInterval(() => {
+              if (eventSource.readyState !== 1) {
+                console.warn(`⚠️ SSE连接状态变化: ${eventSource.readyState} (0=CONNECTING, 1=OPEN, 2=CLOSED)`)
+                clearInterval(monitorInterval)
+              }
+              if (isComplete) {
+                clearInterval(monitorInterval)
+              }
+            }, 500) // 每0.5秒检查一次
+          }
         
         eventSource.onmessage = (event) => {
           try {
+            hasReceivedData = true
             console.log('📨 收到原始SSE数据:', event.data)
             const responseData = JSON.parse(event.data)
             console.log('📨 解析后的SSE消息:', responseData)
@@ -498,7 +532,16 @@ export const useChatStore = defineStore('chat', {
               // 发生错误
               console.error('❌ 服务端返回错误:', responseData.message)
               eventSource.close()
-              reject(new Error(responseData.message || '聊天请求失败'))
+              
+              // 如果是可重试的错误且还有重试次数，则重试
+              if (retryCount < maxRetries && !responseData.message.includes('context canceled')) {
+                console.log(`🔄 准备重试... (${retryCount + 1}/${maxRetries})`)
+                setTimeout(() => {
+                  this.sendMessageSSE(data, onUpdate, retryCount + 1).then(resolve).catch(reject)
+                }, 1000) // 1秒后重试
+              } else {
+                reject(new Error(responseData.message || '聊天请求失败'))
+              }
             }
           } catch (error) {
             console.error('❌ 解析SSE消息失败:', error)
@@ -509,42 +552,219 @@ export const useChatStore = defineStore('chat', {
         eventSource.onerror = (error) => {
           console.error('❌ SSE连接错误:', error)
           console.error('❌ EventSource readyState:', eventSource.readyState)
-          console.error('❌ EventSource URL:', eventSource.url)
-          
-          // readyState: 0=CONNECTING, 1=OPEN, 2=CLOSED
-          if (eventSource.readyState === 2) {
-            console.error('❌ SSE连接已关闭')
-          }
           
           eventSource.close()
           
           if (!isComplete) {
-            reject(new Error('SSE连接中断，readyState: ' + eventSource.readyState))
+            // 如果没有收到任何数据且还有重试次数，则重试
+            if (!hasReceivedData && retryCount < maxRetries) {
+              console.log(`🔄 连接失败，准备重试... (${retryCount + 1}/${maxRetries})`)
+              setTimeout(() => {
+                this.sendMessageSSE(data, onUpdate, retryCount + 1).then(resolve).catch(reject)
+              }, 2000) // 2秒后重试
+            } else {
+              reject(new Error(`SSE连接中断，readyState: ${eventSource.readyState}`))
+            }
           }
         }
         
-        // 设置超时 - 如果10秒内没有收到任何消息，认为可能有问题
+        // 设置超时
         const timeoutId = setTimeout(() => {
           if (!isComplete) {
-            console.warn('⏰ SSE请求超时 - 10秒内没有收到消息')
-            console.warn('🔍 当前EventSource状态:', eventSource.readyState)
+            console.warn('⏰ SSE请求超时')
             eventSource.close()
-            reject(new Error('请求超时 - 后端可能没有发送SSE数据'))
+            
+            // 如果没有收到数据且还有重试次数，则重试
+            if (!hasReceivedData && retryCount < maxRetries) {
+              console.log(`🔄 超时重试... (${retryCount + 1}/${maxRetries})`)
+              this.sendMessageSSE(data, onUpdate, retryCount + 1).then(resolve).catch(reject)
+            } else {
+              reject(new Error('请求超时'))
+            }
           }
-        }, 10000) // 10秒超时，用于快速发现问题
+                 }, 180000) // 180秒超时
         
-        // 如果请求完成，清除超时
+        // 清理超时
+        const cleanup = () => {
+          clearTimeout(timeoutId)
+        }
+        
         const originalResolve = resolve
         const originalReject = reject
         resolve = (...args) => {
-          clearTimeout(timeoutId)
+          cleanup()
           originalResolve(...args)
         }
         reject = (...args) => {
-          clearTimeout(timeoutId)
+          cleanup()
           originalReject(...args)
         }
       })
+    },
+
+    // 备用的fetch流式实现 (使用前端代理避免CORS)
+    async sendMessageFetchStream(data, onUpdate, retryCount = 0) {
+      const maxRetries = 2
+      
+      try {
+        const backendURL = chatApi.defaults?.baseURL || '' // 使用前端代理，避免CORS问题
+        
+        const requestData = {
+          conversation_id: data.conversationId,
+          character_id: data.characterId,
+          content: data.content,
+          message_type: data.type === 'text' ? 1 : (data.type === 'voice' ? 2 : 1),
+          user_id: 1
+        }
+        
+        console.log(`📤 发送Fetch流式请求到: ${backendURL}/api/chat/send (尝试 ${retryCount + 1}/${maxRetries + 1})`)
+        console.log('📤 请求参数:', requestData)
+        console.log('🔍 使用代理模式，baseURL:', backendURL)
+        
+        const queryParams = new URLSearchParams(requestData).toString()
+        const url = `${backendURL}/api/chat/send?${queryParams}`
+        
+        // 创建手动控制的AbortController，更稳定
+        const abortController = new AbortController()
+        const timeoutId = setTimeout(() => {
+          console.warn('⏰ Fetch请求超时，取消请求')
+          abortController.abort()
+        }, 180000) // 180秒超时
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive', // 明确要求保持连接
+          },
+          signal: abortController.signal
+        })
+        
+        // 请求成功，清除超时
+        clearTimeout(timeoutId)
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+        
+        console.log('✅ Fetch流式连接已建立')
+        console.log('🔍 响应头:', {
+          'content-type': response.headers.get('content-type'),
+          'cache-control': response.headers.get('cache-control'),
+          'connection': response.headers.get('connection')
+        })
+        
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        
+        // 添加读取超时保护
+        let lastDataTime = Date.now()
+        const dataTimeoutId = setInterval(() => {
+          if (Date.now() - lastDataTime > 30000) { // 30秒没有数据
+            console.warn('⚠️ 30秒内没有收到数据，可能连接异常')
+            clearInterval(dataTimeoutId)
+            abortController.abort()
+          }
+        }, 5000) // 每5秒检查一次
+        
+        let aiResponse = ''
+        let messageId = null
+        let buffer = ''
+        
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+            
+            if (done) {
+              console.log('✅ 流式读取完成')
+              break
+            }
+            
+            lastDataTime = Date.now() // 更新最后接收数据的时间
+            
+            // 解码数据
+            const chunk = decoder.decode(value, { stream: true })
+            buffer += chunk
+            
+            // 处理SSE数据格式
+            const lines = buffer.split('\n')
+            buffer = lines.pop() || '' // 保留最后一行（可能不完整）
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.substring(6)
+                if (data.trim()) {
+                  try {
+                    const responseData = JSON.parse(data)
+                    console.log('📨 收到流式数据:', responseData)
+                    
+                    if (responseData.type === 'message') {
+                      aiResponse += responseData.content || ''
+                      messageId = responseData.message_id
+                      
+                      if (onUpdate) {
+                        onUpdate(aiResponse)
+                      }
+                    } else if (responseData.type === 'complete') {
+                      console.log('✅ 流式回复完成，最终内容:', aiResponse)
+                      clearInterval(dataTimeoutId)
+                      return {
+                        data: {
+                          ai_message: {
+                            id: messageId || `ai-${Date.now()}`,
+                            content: aiResponse,
+                            timestamp: new Date().toISOString()
+                          }
+                        }
+                      }
+                    } else if (responseData.type === 'error') {
+                      clearInterval(dataTimeoutId)
+                      throw new Error(responseData.message || '聊天请求失败')
+                    }
+                  } catch (parseError) {
+                    console.warn('⚠️ 解析SSE数据失败:', parseError, data)
+                  }
+                }
+              }
+            }
+          }
+          
+          // 清理定时器
+          clearInterval(dataTimeoutId)
+          
+          // 如果循环结束但没有收到complete，返回当前内容
+          if (aiResponse) {
+            return {
+              data: {
+                ai_message: {
+                  id: messageId || `ai-${Date.now()}`,
+                  content: aiResponse,
+                  timestamp: new Date().toISOString()
+                }
+              }
+            }
+          } else {
+            throw new Error('没有收到任何回复内容')
+          }
+          
+        } finally {
+          clearInterval(dataTimeoutId)
+          reader.releaseLock()
+        }
+        
+      } catch (error) {
+        console.error('❌ Fetch流式请求失败:', error)
+        
+        // 重试逻辑
+        if (retryCount < maxRetries && !error.message.includes('timeout') && !error.name === 'AbortError') {
+          console.log(`🔄 准备重试... (${retryCount + 1}/${maxRetries})`)
+          await new Promise(resolve => setTimeout(resolve, 2000)) // 等待2秒
+          return this.sendMessageFetchStream(data, onUpdate, retryCount + 1)
+        }
+        
+        throw error
+      }
     },
 
     // 开始录音

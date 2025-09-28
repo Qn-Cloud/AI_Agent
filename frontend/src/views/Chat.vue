@@ -298,7 +298,28 @@ const sendTextMessage = async () => {
     console.log('✅ 消息发送成功')
   } catch (error) {
     console.error('❌ 消息发送失败:', error)
-    ElMessage.error('发送消息失败: ' + error.message)
+    
+    // 如果是context canceled错误，提示用户重试
+    if (error.message.includes('context canceled') || error.message.includes('连接中断')) {
+      ElMessage({
+        message: '服务器响应超时，正在自动重试...',
+        type: 'warning',
+        duration: 2000
+      })
+      
+      // 自动重试一次
+      setTimeout(async () => {
+        try {
+          await chatStore.sendMessage(textInput.value.trim())
+          textInput.value = ''
+          ElMessage.success('重试成功！')
+        } catch (retryError) {
+          ElMessage.error('重试失败，请稍后再试: ' + retryError.message)
+        }
+      }, 3000)
+    } else {
+      ElMessage.error('发送消息失败: ' + error.message)
+    }
   }
 }
 
