@@ -392,9 +392,18 @@ const pageSize = ref(10)
 const showDetailDialog = ref(false)
 const selectedConversationDetail = ref(null)
 
-// 计算属性
-const characters = computed(() => characterStore.characters)
-const allConversations = computed(() => chatStore.conversations)
+// 计算属性 - 使用角色映射表构建角色列表
+const characters = computed(() => {
+  // 返回所有映射中定义的角色
+  return Object.values(characterMap).map(character => ({
+    id: character.id,
+    name: character.name
+  }))
+})
+const allConversations = computed(() => {
+  console.log('🔍 allConversations computed:', chatStore.conversations)
+  return chatStore.conversations
+})
 
 const filteredConversations = computed(() => {
   let conversations = [...allConversations.value]
@@ -410,7 +419,9 @@ const filteredConversations = computed(() => {
 
   // 角色过滤
   if (selectedCharacter.value) {
-    conversations = conversations.filter(conv => conv.characterId === selectedCharacter.value)
+    // 确保类型匹配：selectedCharacter.value 可能是字符串，需要转换为数字比较
+    const selectedId = parseInt(selectedCharacter.value)
+    conversations = conversations.filter(conv => conv.characterId === selectedId)
   }
 
   // 日期过滤
@@ -649,47 +660,120 @@ const continueConversation = (conversation) => {
   router.push(`/chat/${conversation.characterId}`)
 }
 
-const exportConversation = (conversation) => {
-  const character = getCharacterById(conversation.characterId)
-  const content = conversation.messages.map(msg =>
-    `${msg.type === 'user' ? '用户' : character?.name}: ${msg.content}`
-  ).join('\n\n')
+const exportConversation = async (conversation) => {
+  try {
+    const character = getCharacterById(conversation.characterId)
+    
+    // 如果消息已经加载，直接使用
+    let messages = conversation.messages || []
+    
+    // 如果消息为空，需要从后端加载
+    if (messages.length === 0) {
+      console.log('🔍 导出：需要加载消息内容')
+      const response = await chatApiService.getMessages(conversation.id, {
+        page: 1,
+        pageSize: 1000 // 获取所有消息
+      })
+      
+      if (response && response.data && response.data.messages) {
+        messages = response.data.messages.map(msg => ({
+          type: msg.type,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp)
+        }))
+      }
+    }
+    
+    // 生成导出内容
+    const header = `=== ${conversation.title} ===\n` +
+                  `时间: ${formatTime(conversation.startTime)} - ${formatTime(conversation.lastUpdate)}\n` +
+                  `角色: ${character?.name}\n` +
+                  `消息数量: ${messages.length}\n\n`
+    
+    const content = messages.map(msg =>
+      `${msg.type === 'user' ? '用户' : character?.name}: ${msg.content}`
+    ).join('\n\n')
 
-  const blob = new Blob([content], { type: 'text/plain' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${conversation.title}.txt`
-  a.click()
-  URL.revokeObjectURL(url)
+    const fullContent = header + content
+    
+    const blob = new Blob([fullContent], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${conversation.title}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
 
-  ElMessage.success('对话已导出')
+    ElMessage.success('对话已导出')
+  } catch (error) {
+    console.error('❌ 导出失败:', error)
+    ElMessage.error('导出失败，请重试')
+  }
 }
 
-const exportAll = () => {
+const exportAll = async () => {
   if (filteredConversations.value.length === 0) {
     ElMessage.warning('没有对话可导出')
     return
   }
 
-  const allContent = filteredConversations.value.map(conversation => {
-    const character = getCharacterById(conversation.characterId)
-    const header = `=== ${conversation.title} ===\n时间: ${formatTime(conversation.startTime)} - ${formatTime(conversation.lastUpdate)}\n角色: ${character?.name}\n\n`
-    const messages = conversation.messages.map(msg =>
-      `${msg.type === 'user' ? '用户' : character?.name}: ${msg.content}`
-    ).join('\n\n')
-    return header + messages
-  }).join('\n\n' + '='.repeat(50) + '\n\n')
+  try {
+    ElMessage.info('正在导出所有对话，请稍候...')
+    
+    const conversationContents = []
+    
+    // 为每个对话加载消息内容
+    for (const conversation of filteredConversations.value) {
+      const character = getCharacterById(conversation.characterId)
+      
+      // 获取消息内容
+      let messages = conversation.messages || []
+      if (messages.length === 0) {
+        console.log(`🔍 导出：加载对话 ${conversation.id} 的消息`)
+        const response = await chatApiService.getMessages(conversation.id, {
+          page: 1,
+          pageSize: 1000
+        })
+        
+        if (response && response.data && response.data.messages) {
+          messages = response.data.messages.map(msg => ({
+            type: msg.type,
+            content: msg.content,
+            timestamp: new Date(msg.timestamp)
+          }))
+        }
+      }
+      
+      // 生成对话内容
+      const header = `=== ${conversation.title} ===\n` +
+                    `时间: ${formatTime(conversation.startTime)} - ${formatTime(conversation.lastUpdate)}\n` +
+                    `角色: ${character?.name}\n` +
+                    `消息数量: ${messages.length}\n\n`
+      
+      const messagesContent = messages.map(msg =>
+        `${msg.type === 'user' ? '用户' : character?.name}: ${msg.content}`
+      ).join('\n\n')
+      
+      conversationContents.push(header + messagesContent)
+    }
+    
+    // 合并所有对话内容
+    const allContent = conversationContents.join('\n\n' + '='.repeat(50) + '\n\n')
+    
+    // 导出文件
+    const blob = new Blob([allContent], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `对话历史_${new Date().toLocaleDateString()}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
 
-  const blob = new Blob([allContent], { type: 'text/plain' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `对话历史_${new Date().toLocaleDateString()}.txt`
-  a.click()
-  URL.revokeObjectURL(url)
-
-  ElMessage.success('所有对话已导出')
+    ElMessage.success('所有对话已导出')
+  } catch (error) {
+    console.error('❌ 导出全部失败:', error)
+    ElMessage.error('导出失败，请重试')
+  }
 }
 
 const deleteSelected = async () => {
@@ -706,6 +790,11 @@ const deleteSelected = async () => {
       }
     )
 
+    // 调用后端批量删除API
+    console.log('🗑️ 批量删除对话:', selectedConversations.value)
+    await chatApiService.batchDeleteConversations(selectedConversations.value)
+
+    // 从前端状态中移除
     selectedConversations.value.forEach(id => {
       chatStore.deleteConversation(id)
     })
@@ -713,8 +802,12 @@ const deleteSelected = async () => {
     selectedConversations.value = []
     selectAll.value = false
     ElMessage.success('选中的对话已删除')
-  } catch {
-    // 用户取消
+  } catch (error) {
+    console.error('❌ 批量删除对话失败:', error)
+    if (error.message && !error.message.includes('cancel')) {
+      ElMessage.error('删除失败，请重试')
+    }
+    // 用户取消的情况不显示错误
   }
 }
 
@@ -726,6 +819,11 @@ const deleteConversation = async (conversationId) => {
       type: 'warning'
     })
 
+    // 调用后端删除API
+    console.log('🗑️ 删除对话:', conversationId)
+    await chatApiService.deleteConversation(conversationId)
+    
+    // 从前端状态中移除
     chatStore.deleteConversation(conversationId)
     
     // 从选中列表中移除
@@ -735,8 +833,12 @@ const deleteConversation = async (conversationId) => {
     }
 
     ElMessage.success('对话已删除')
-  } catch {
-    // 用户取消
+  } catch (error) {
+    console.error('❌ 批量删除对话失败:', error)
+    if (error.message && !error.message.includes('cancel')) {
+      ElMessage.error('删除失败，请重试')
+    }
+    // 用户取消的情况不显示错误
   }
 }
 

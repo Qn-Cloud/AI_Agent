@@ -5,3 +5,8 @@ const (
 	SortByLastMessageCount = 2
 	SortByCharacter        = 3
 )
+
+const (
+	Normal  = 1
+	Deleted = 2
+)

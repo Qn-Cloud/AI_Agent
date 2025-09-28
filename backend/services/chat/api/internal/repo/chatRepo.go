@@ -1,6 +1,7 @@
 package repo
 
 import (
+	common "ai-roleplay/common/utils"
 	"ai-roleplay/services/chat/api/internal/svc"
 	"ai-roleplay/services/chat/api/internal/types"
 	"ai-roleplay/services/chat/model"
@@ -55,7 +56,7 @@ func (r *ChatServiceRepo) GetConversationByID(id int64) (*model.Conversation, er
 	db := r.svcCtx.Db.WithContext(r.ctx)
 
 	var conversation model.Conversation
-	if err := db.Where("id = ?", id).First(&conversation).Error; err != nil {
+	if err := db.Where("id = ? AND status != ?", id, common.Deleted).First(&conversation).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -83,6 +84,9 @@ func (r *ChatServiceRepo) GetConversationList(req *types.ConversationListRequest
 
 	// 构建查询条件
 	query := db.Model(&model.Conversation{})
+
+	// 过滤已删除的记录
+	query = query.Where("status != ?", common.Deleted)
 
 	// 用户筛选（如果有用户ID参数的话）
 	if req.UserID > 0 {
@@ -146,26 +150,18 @@ func (r *ChatServiceRepo) GetMessages(req *types.MessageListRequest) ([]model.Me
 	return messages, total, nil
 }
 
-// DeleteConversation 删除对话
+// DeleteConversation 删除对话（软删除）
 func (r *ChatServiceRepo) DeleteConversation(id int64) error {
 	db := r.svcCtx.Db.WithContext(r.ctx)
 
-	// 开启事务
-	return db.Transaction(func(tx *gorm.DB) error {
-		// 先删除对话中的所有消息
-		if err := tx.Where("conversation_id = ?", id).Delete(&model.Message{}).Error; err != nil {
-			r.Logger.Error("DeleteConversation messages failed: ", err)
-			return err
-		}
+	// 软删除：只修改状态为已删除
+	if err := db.Model(&model.Conversation{}).Where("id = ?", id).
+		Update("status", common.Deleted).Error; err != nil {
+		r.Logger.Error("DeleteConversation failed: ", err)
+		return err
+	}
 
-		// 再删除对话
-		if err := tx.Where("id = ?", id).Delete(&model.Conversation{}).Error; err != nil {
-			r.Logger.Error("DeleteConversation failed: ", err)
-			return err
-		}
-
-		return nil
-	})
+	return nil
 }
 
 // ClearMessages 清空对话消息
@@ -209,6 +205,9 @@ func (r *ChatServiceRepo) SearchConversations(req *types.SearchConversationReque
 
 	// 构建搜索查询
 	query := db.Model(&model.Conversation{})
+
+	// 过滤已删除的记录
+	query = query.Where("status != ?", common.Deleted)
 
 	if req.Keyword != "" {
 		keyword := "%" + req.Keyword + "%"
@@ -262,26 +261,18 @@ func (r *ChatServiceRepo) ExportConversation(conversationID int64) (*model.Conve
 	return &conversation, messages, nil
 }
 
-// BatchDeleteConversations 批量删除对话
+// BatchDeleteConversations 批量删除对话（软删除）
 func (r *ChatServiceRepo) BatchDeleteConversations(conversationIDs []int64) error {
 	db := r.svcCtx.Db.WithContext(r.ctx)
 
-	// 开启事务
-	return db.Transaction(func(tx *gorm.DB) error {
-		// 先删除所有相关消息
-		if err := tx.Where("conversation_id IN ?", conversationIDs).Delete(&model.Message{}).Error; err != nil {
-			r.Logger.Error("BatchDeleteConversations messages failed: ", err)
-			return err
-		}
+	// 批量软删除：只修改状态为已删除
+	if err := db.Model(&model.Conversation{}).Where("id IN ?", conversationIDs).
+		Update("status", common.Deleted).Error; err != nil {
+		r.Logger.Error("BatchDeleteConversations failed: ", err)
+		return err
+	}
 
-		// 再删除对话
-		if err := tx.Where("id IN ?", conversationIDs).Delete(&model.Conversation{}).Error; err != nil {
-			r.Logger.Error("BatchDeleteConversations failed: ", err)
-			return err
-		}
-
-		return nil
-	})
+	return nil
 }
 
 // UpdateConversationUpdatedAt 更新对话的最后更新时间
@@ -365,6 +356,7 @@ func (r *ChatServiceRepo) GetConversationsByUserID(userID int64, page, pageSize 
 	if characterID > 0 {
 		query = query.Where("character_id = ?", characterID)
 	}
+	query = query.Where("status != ?", common.Deleted)
 	// 统计总数
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
@@ -396,6 +388,9 @@ func (r *ChatServiceRepo) GetConversationHistory(req *types.GetConversationHisto
 	offset := (page - 1) * pageSize
 
 	query := db.Model(&model.Conversation{})
+
+	// 过滤已删除的记录
+	query = query.Where("status != ?", common.Deleted)
 
 	if req.Keyword != "" {
 		keyword := "%" + req.Keyword + "%"
