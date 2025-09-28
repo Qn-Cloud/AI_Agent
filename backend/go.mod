@@ -59,6 +59,7 @@ require (
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/asr v1.1.29 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.1.35 // indirect
 	github.com/zeromicro/x v0.0.0-20240408115609-8224c482b07e // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect

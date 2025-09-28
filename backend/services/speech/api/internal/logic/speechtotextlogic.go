@@ -12,6 +12,10 @@ import (
 	"ai-roleplay/services/speech/api/internal/svc"
 	"ai-roleplay/services/speech/api/internal/types"
 
+	asr "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/asr/v20190614"
+	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
+	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/errors"
+	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -125,6 +129,30 @@ func (l *SpeechToTextLogic) performTencentASR(audioData []byte, req *types.Speec
 
 	// 这里可以集成腾讯云语音识别SDK
 	// 由于需要引入腾讯云SDK，暂时返回模拟结果
+	credential := common.NewCredential(
+		tencentConfig.SecretID,
+		tencentConfig.SecretKey,
+	)
+	cpf := profile.NewClientProfile()
+	cpf.HttpProfile.Endpoint = "asr.tencentcloudapi.com"
+	// 实例化要请求产品的client对象,clientProfile是可选的
+	client, _ := asr.NewClient(credential, "", cpf)
+
+	// 实例化一个请求对象,每个接口都会对应一个request对象
+	request := asr.NewSentenceRecognitionRequest()
+
+	// 返回的resp是一个SentenceRecognitionResponse的实例，与请求对象对应
+	response, err := client.SentenceRecognition(request)
+	if _, ok := err.(*errors.TencentCloudSDKError); ok {
+		fmt.Printf("An API error has returned: %s", err)
+		return "", 0, 0, err
+	}
+	if err != nil {
+		panic(err)
+	}
+	// 输出json格式的字符串回包
+	fmt.Printf("%s", response.ToJsonString())
+
 	l.Logger.Info("腾讯云语音识别SDK集成待实现，使用模拟结果")
 
 	// 模拟腾讯云的响应格式
