@@ -2,20 +2,14 @@
 export const config = {
   // API配置 - 支持多个微服务
   api: {
-    // 聊天服务
-    chatBaseUrl: import.meta.env.VITE_CHAT_API_URL || 'http://192.168.23.188:7001',
-    // 角色服务
-    characterBaseUrl: import.meta.env.VITE_CHARACTER_API_URL || 'http://192.168.23.188:7002',
-    // 用户服务
-    userBaseUrl: import.meta.env.VITE_USER_API_URL || 'http://192.168.23.188:7003',
-    // AI服务
-    aiBaseUrl: import.meta.env.VITE_AI_API_URL || 'http://192.168.23.188:7004',
-    // 语音服务
-    speechBaseUrl: import.meta.env.VITE_SPEECH_API_URL || 'http://192.168.23.188:7005',
-    // 存储服务
-    storageBaseUrl: import.meta.env.VITE_STORAGE_API_URL || 'http://192.168.23.188:7006',
-    // 网关服务（如果有的话）
-    gatewayBaseUrl: import.meta.env.VITE_GATEWAY_API_URL || 'http://192.168.23.188:8888'
+    // 开发环境使用代理，生产环境使用直接地址
+    chatBaseUrl: import.meta.env.DEV ? '' : (import.meta.env.VITE_CHAT_API_URL || 'http://192.168.23.188:7001'),
+    characterBaseUrl: import.meta.env.DEV ? '' : (import.meta.env.VITE_CHARACTER_API_URL || 'http://192.168.23.188:7002'),
+    userBaseUrl: import.meta.env.DEV ? '' : (import.meta.env.VITE_USER_API_URL || 'http://192.168.23.188:7003'),
+    aiBaseUrl: import.meta.env.DEV ? '' : (import.meta.env.VITE_AI_API_URL || 'http://192.168.23.188:7004'),
+    speechBaseUrl: import.meta.env.DEV ? '' : (import.meta.env.VITE_SPEECH_API_URL || 'http://192.168.23.188:7005'),
+    storageBaseUrl: import.meta.env.DEV ? '' : (import.meta.env.VITE_STORAGE_API_URL || 'http://192.168.23.188:7006'),
+    gatewayBaseUrl: import.meta.env.DEV ? '' : (import.meta.env.VITE_GATEWAY_API_URL || 'http://192.168.23.188:8888')
   },
   
   // 保留旧的配置以兼容现有代码
