@@ -1,20 +1,40 @@
 import { speechApi } from './apiFactory'
 
 export const speechApiService = {
+  // 健康检查
+  async healthCheck() {
+    try {
+      console.log('🔍 语音服务健康检查...')
+      const response = await speechApi.get('/api/speech/health')
+      console.log('✅ 语音服务健康检查成功:', response)
+      return response
+    } catch (error) {
+      console.error('❌ 语音服务健康检查失败:', error)
+      throw error
+    }
+  },
+
   // 语音转文字
   speechToText(audioData, options = {}) {
+    console.log('🔍 speechToText 被调用')
+    console.log('🔍 speechApi 实例:', speechApi)
+    console.log('🔍 speechApi baseURL:', speechApi.defaults?.baseURL)
+    
     const formData = new FormData()
     
     // 如果是文件对象
     if (audioData instanceof File) {
       formData.append('audio', audioData)
+      console.log('🔍 添加文件到FormData:', audioData.name, audioData.size)
     } else if (audioData instanceof Blob) {
       // 如果是Blob对象
       formData.append('audio', audioData, 'audio.wav')
+      console.log('🔍 添加Blob到FormData:', audioData.size, 'bytes')
     } else {
       // 如果是base64字符串
       formData.append('audio_data', audioData)
       formData.append('format', options.format || 'wav')
+      console.log('🔍 添加base64数据到FormData')
     }
     
     // 添加其他参数
@@ -23,6 +43,12 @@ export const speechApiService = {
     }
     if (options.sampleRate) {
       formData.append('sample_rate', options.sampleRate)
+    }
+    
+    console.log('🔍 准备发送POST请求到:', '/api/speech/stt')
+    console.log('🔍 FormData内容:')
+    for (let [key, value] of formData.entries()) {
+      console.log(`  ${key}:`, value)
     }
     
     return speechApi.post('/api/speech/stt', formData, {
@@ -130,20 +156,35 @@ export class VoiceRecorder {
       if (this.onTranscriptCallback) {
         try {
           console.log('🔄 正在转换语音为文字...')
+          console.log('🔍 调用API:', 'speechApiService.speechToText')
+          console.log('🔍 音频数据类型:', audioBlob.constructor.name)
+          console.log('🔍 音频数据大小:', audioBlob.size, 'bytes')
+          
           const response = await speechApiService.speechToText(audioBlob, {
             language: 'zh-CN',
             format: 'wav'
           })
           
-          if (response && response.data && response.data.text) {
-            console.log('✅ 语音转文字成功:', response.data.text)
+          console.log('🔍 API响应:', response)
+          
+          if (response && response.data && response.data.data && response.data.data.text) {
+            console.log('✅ 语音转文字成功:', response.data.data.text)
+            this.onTranscriptCallback(response.data.data.text)
+          } else if (response && response.data && response.data.text) {
+            console.log('✅ 语音转文字成功 (直接格式):', response.data.text)
             this.onTranscriptCallback(response.data.text)
           } else {
-            console.warn('语音转文字返回空结果')
+            console.warn('语音转文字返回空结果，响应结构:', response)
             this.onTranscriptCallback('')
           }
         } catch (error) {
           console.error('❌ 语音转文字失败:', error)
+          console.error('❌ 错误详情:', {
+            message: error.message,
+            response: error.response,
+            status: error.response?.status,
+            data: error.response?.data
+          })
           // 降级方案：显示提示信息
           this.onTranscriptCallback('[语音转文字失败，请重试]')
         }

@@ -22,6 +22,9 @@
         </div>
       </div>
       <div class="header-right">
+        <el-button @click="testSpeechService" type="primary" size="small">
+          测试语音
+        </el-button>
         <el-button @click="openSettings" :icon="Setting" size="large" text>
           设置
         </el-button>
@@ -178,6 +181,7 @@ import { useChatStore } from '../stores/chat'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Setting, User, ChatDotRound, Microphone, ArrowRight } from '@element-plus/icons-vue'
 import LoadingStates from '../components/LoadingStates.vue'
+import { speechApiService } from '../services/speech'
 
 const route = useRoute()
 const router = useRouter()
@@ -328,6 +332,21 @@ const handleImageError = (event) => {
   placeholder.className = 'avatar-placeholder'
   placeholder.innerHTML = '<el-icon><User /></el-icon>'
   event.target.parentNode.appendChild(placeholder)
+}
+
+// 测试语音服务连接
+const testSpeechService = async () => {
+  try {
+    console.log('🔍 开始测试语音服务连接...')
+    ElMessage.info('正在测试语音服务连接...')
+    
+    const response = await speechApiService.healthCheck()
+    console.log('✅ 语音服务连接成功:', response)
+    ElMessage.success('语音服务连接正常！')
+  } catch (error) {
+    console.error('❌ 语音服务连接失败:', error)
+    ElMessage.error(`语音服务连接失败: ${error.message}`)
+  }
 }
 
 // 生命周期
