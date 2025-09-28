@@ -11,7 +11,7 @@ export const chatApiService = {
         conversation_id: data.conversationId,
         character_id: data.characterId,
         content: data.content,
-        type: data.type || 'text',
+        message_type: data.type === 'text' ? 1 : (data.type === 'voice' ? 2 : 1), // 1=文本, 2=语音
         user_id: 1 // 暂时固定为1
       }
       

@@ -433,7 +433,7 @@ export const useChatStore = defineStore('chat', {
           conversation_id: data.conversationId,
           character_id: data.characterId,
           content: data.content,
-          type: data.type || 'text',
+          message_type: data.type === 'text' ? 1 : (data.type === 'voice' ? 2 : 1), // 1=文本, 2=语音
           user_id: 1 // 暂时固定为1
         }
         
@@ -457,6 +457,8 @@ export const useChatStore = defineStore('chat', {
         
         eventSource.onopen = () => {
           console.log('✅ SSE连接已建立')
+          console.log('🔍 EventSource readyState:', eventSource.readyState)
+          console.log('🔍 EventSource URL:', eventSource.url)
         }
         
         eventSource.onmessage = (event) => {
@@ -507,21 +509,41 @@ export const useChatStore = defineStore('chat', {
         eventSource.onerror = (error) => {
           console.error('❌ SSE连接错误:', error)
           console.error('❌ EventSource readyState:', eventSource.readyState)
+          console.error('❌ EventSource URL:', eventSource.url)
+          
+          // readyState: 0=CONNECTING, 1=OPEN, 2=CLOSED
+          if (eventSource.readyState === 2) {
+            console.error('❌ SSE连接已关闭')
+          }
+          
           eventSource.close()
           
           if (!isComplete) {
-            reject(new Error('SSE连接中断'))
+            reject(new Error('SSE连接中断，readyState: ' + eventSource.readyState))
           }
         }
         
-        // 设置超时
-        setTimeout(() => {
+        // 设置超时 - 如果10秒内没有收到任何消息，认为可能有问题
+        const timeoutId = setTimeout(() => {
           if (!isComplete) {
-            console.warn('⏰ SSE请求超时')
+            console.warn('⏰ SSE请求超时 - 10秒内没有收到消息')
+            console.warn('🔍 当前EventSource状态:', eventSource.readyState)
             eventSource.close()
-            reject(new Error('请求超时'))
+            reject(new Error('请求超时 - 后端可能没有发送SSE数据'))
           }
-        }, 60000) // 60秒超时
+        }, 10000) // 10秒超时，用于快速发现问题
+        
+        // 如果请求完成，清除超时
+        const originalResolve = resolve
+        const originalReject = reject
+        resolve = (...args) => {
+          clearTimeout(timeoutId)
+          originalResolve(...args)
+        }
+        reject = (...args) => {
+          clearTimeout(timeoutId)
+          originalReject(...args)
+        }
       })
     },
 

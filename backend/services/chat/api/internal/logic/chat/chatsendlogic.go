@@ -106,13 +106,26 @@ func (l *ChatSendLogic) getChatHistory(conversation_id int64) ([]*schema.Message
 	}
 	var messages []*schema.Message
 	for _, message := range chatHistory {
+		role := convertRoleForLLM(message.Type)
 		msg := &schema.Message{
-			Role:    schema.RoleType(message.Type),
+			Role:    schema.RoleType(role),
 			Content: message.Content,
 		}
 		messages = append(messages, msg)
 	}
 	return messages, nil
+}
+func convertRoleForLLM(role string) string {
+	switch role {
+	case "ai":
+		return "assistant" // 将 "ai" 转换为 "assistant"
+	case "user":
+		return "user" // 保持不变
+	case "system":
+		return "system" // 保持不变
+	default:
+		return "assistant" // 默认为 assistant
+	}
 }
 
 func (l *ChatSendLogic) sendEvent(client chan<- *types.ChatSSEEvent, resp *types.ChatSSEEvent) {
