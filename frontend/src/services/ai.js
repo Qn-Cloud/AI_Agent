@@ -1,9 +1,9 @@
-import api from './api'
+import { aiApi } from './apiFactory'
 
-export const aiApi = {
+export const aiApiService = {
   // AI对话
   aiChat(data) {
-    return api.post('/api/ai/chat', {
+    return aiApi.post('/api/ai/chat', {
       character_id: data.characterId,
       conversation_id: data.conversationId,
       message: data.message,
@@ -18,12 +18,12 @@ export const aiApi = {
 
   // 获取AI模型列表
   getAIModels() {
-    return api.get('/api/ai/models')
+    return aiApi.get('/api/ai/models')
   },
 
   // 获取用户使用统计
   getUsageStats(params = {}) {
-    return api.get('/api/ai/usage', {
+    return aiApi.get('/api/ai/usage', {
       params: {
         start_date: params.startDate,
         end_date: params.endDate,
@@ -55,7 +55,7 @@ export class ChatSession {
       const context = this.messageHistory.slice(-10) // 保留最近10条消息作为上下文
 
       // 调用AI接口
-      const response = await aiApi.aiChat({
+      const response = await aiApiService.aiChat({
         characterId: this.characterId,
         conversationId: this.conversationId,
         message: content,
@@ -110,3 +110,7 @@ export class ChatSession {
     return this.isProcessing
   }
 }
+
+// 保持向后兼容
+export const aiApi_old = aiApiService
+export default aiApiService

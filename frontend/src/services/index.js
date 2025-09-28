@@ -1,10 +1,30 @@
-// API服务统一导出
+// 导入API实例
+import api from './api'
+
+// 服务接口（主要导出，保持原有命名以兼容现有代码）
+export { default as chatApiService, chatApi_old as chatApi } from './chat'
+export { default as characterApiService, characterApi_old as characterApi } from './character'
+export { default as userApiService, userApi_old as userApi } from './user'
+export { default as aiApiService, aiApi_old as aiApi } from './ai'
+export { default as speechApiService, speechApi_old as speechApi } from './speech'
+
+// 语音相关功能
+export { VoiceRecorder, VoicePlayer } from './speech'
+
+// 保持向后兼容的默认导出
 export { default as api } from './api'
-export { userApi } from './user'
-export { characterApi } from './character'
-export { chatApi } from './chat'
-export { speechApi, VoiceRecorder, VoicePlayer } from './speech'
-export { aiApi, ChatSession } from './ai'
+
+// API工厂实例（重命名避免冲突）
+export { 
+  chatApi as chatApiInstance,
+  characterApi as characterApiInstance, 
+  userApi as userApiInstance,
+  aiApi as aiApiInstance,
+  speechApi as speechApiInstance,
+  storageApi as storageApiInstance,
+  gatewayApi,
+  defaultApi 
+} from './apiFactory'
 
 // 健康检查和系统状态
 export const systemApi = {
@@ -24,7 +44,7 @@ export const systemApi = {
   }
 }
 
-// 存储服务API
+// 存储服务API（使用默认api实例避免命名冲突）
 export const storageApi = {
   // 上传文件
   uploadFile(file, options = {}) {

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { chatApi, aiApi, speechApi, VoiceRecorder, VoicePlayer } from '../services'
+import { chatApiService as chatApi, aiApiService as aiApi, speechApiService as speechApi, VoiceRecorder, VoicePlayer } from '../services'
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
