@@ -32,7 +32,7 @@ func (l *GetConversationHistoryLogic) GetConversationHistory(req *types.GetConve
 	chatRepo := repo.NewChatServiceRepo(l.ctx, l.svcCtx)
 
 	// 获取对话历史
-	conversations, total, err := chatRepo.GetConversationsByUserID(req.UserID, req.Page, req.PageSize, req.CharacterID)
+	conversations, total, err := chatRepo.GetConversationsByUserID(req.UserID, req.Page, req.PageSize, int64(req.CharacterID))
 	if err != nil {
 		l.Logger.Error("GetConversationHistory failed: ", err)
 		return nil, err

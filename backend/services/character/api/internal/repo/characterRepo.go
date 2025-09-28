@@ -404,19 +404,8 @@ func (r *CharacterServiceRepo) GetMyCharacters(userID int64, req *types.MyCharac
 	query := db.Model(&model.Character{}).
 		Where("creator_id = ? AND status != ?", userID, 2) // 排除已删除的
 
-	// 状态筛选
-	if req.Status > 0 {
-		query = query.Where("status = ?", req.Status)
-	}
-
 	// 公开性筛选
-	if req.IsPublic != nil {
-		isPublicValue := 0
-		if *req.IsPublic {
-			isPublicValue = 1
-		}
-		query = query.Where("is_public = ?", isPublicValue)
-	}
+	query = query.Where("is_public = ?", 1)
 
 	// 获取总数
 	var total int64
