@@ -152,7 +152,9 @@ func (l *SpeechToTextLogic) performTencentASR(audioData []byte, req *types.Speec
 
 	// 实例化一个请求对象,每个接口都会对应一个request对象
 	request := asr.NewSentenceRecognitionRequest()
-
+	request.EngSerViceType = common.StringPtr("16k_en")
+	request.SourceType = common.Uint64Ptr(1)
+	request.VoiceFormat = common.StringPtr("wav")
 	// 返回的resp是一个SentenceRecognitionResponse的实例，与请求对象对应
 	response, err := client.SentenceRecognition(request)
 	if _, ok := err.(*errors.TencentCloudSDKError); ok {
