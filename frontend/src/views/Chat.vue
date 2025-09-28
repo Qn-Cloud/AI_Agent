@@ -218,7 +218,16 @@ const quickTips = computed(() => {
 
 // 方法
 const initializeChat = async (characterId) => {
-  await characterStore.selectCharacter(characterId)
+  // 如果当前角色已经设置且匹配，则跳过选择角色的步骤
+  if (!characterStore.currentCharacter || 
+      (characterStore.currentCharacter.id != characterId && 
+       characterStore.currentCharacter.id !== String(characterId))) {
+    // 只有在当前角色不匹配时才重新选择角色
+  if (!characterStore.currentCharacter || characterStore.currentCharacter.id != characterId) {
+    await characterStore.selectCharacter(characterId)
+  }
+  }
+  
   if (!currentConversation.value) {
     await chatStore.startNewConversation(characterId)
   }

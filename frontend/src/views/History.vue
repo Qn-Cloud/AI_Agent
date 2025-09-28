@@ -179,7 +179,7 @@
 
             <div class="conversation-actions">
               <el-button @click.stop="continueConversation(conversation)" :icon="ChatDotRound" size="small">
-                继续
+                查看
               </el-button>
               <el-button @click.stop="exportConversation(conversation)" :icon="Download" size="small">
                 导出
@@ -317,11 +317,28 @@
             class="detail-message"
             :class="{ 'user-message': message.type === 'user' }"
           >
-            <div class="message-sender">
-              {{ message.type === 'user' ? '用户' : getCharacterById(selectedConversationDetail.characterId)?.name }}
+            <div class="message-avatar">
+              <div 
+                v-if="message.type === 'user'"
+                class="avatar-text user-avatar"
+              >
+                用户
+              </div>
+              <img 
+                v-else
+                :src="getCharacterById(selectedConversationDetail.characterId)?.avatar || '/images/avatars/default.jpg'"
+                :alt="getCharacterById(selectedConversationDetail.characterId)?.name + '头像'"
+                class="avatar-img"
+                @error="handleImageError"
+              />
             </div>
-            <div class="message-content">{{ message.content }}</div>
-            <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+            <div class="message-body">
+              <div class="message-sender">
+                {{ message.type === 'user' ? '用户' : getCharacterById(selectedConversationDetail.characterId)?.name }}
+              </div>
+              <div class="message-content">{{ message.content }}</div>
+              <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -330,6 +347,7 @@
         <div class="dialog-footer">
           <el-button @click="closeDetailDialog">关闭</el-button>
           <el-button @click="exportConversation(selectedConversationDetail)" type="primary">导出对话</el-button>
+          <el-button @click="goToChat(selectedConversationDetail)" type="success">继续对话</el-button>
         </div>
       </template>
     </el-dialog>
@@ -654,10 +672,60 @@ const closeDetailDialog = () => {
   selectedConversationDetail.value = null
 }
 
-const continueConversation = (conversation) => {
-  chatStore.selectConversation(conversation.id)
-  characterStore.selectCharacter(conversation.characterId)
+const goToChat = (conversation) => {
+  // 关闭弹窗
+  closeDetailDialog()
+  
+  // 获取角色信息
+  const character = getCharacterById(conversation.characterId)
+  if (!character) {
+    ElMessage.error('角色信息不存在')
+    return
+  }
+  
+  // 直接设置当前角色，避免API调用
+  characterStore.currentCharacter = {
+    id: String(character.id), // 确保ID是字符串格式
+    name: character.name,
+    avatar: character.avatar,
+    description: `与${character.name}的对话`,
+    status: 'online',
+    tags: ['历史对话'],
+    personality: {
+      friendliness: 80,
+      humor: 70,
+      intelligence: 85,
+      creativity: 75
+    },
+    prompt: `你是${character.name}`,
+    voiceSettings: {
+      rate: 1.0,
+      pitch: 1.0,
+      volume: 0.8
+    }
+  }
+  
+  // 设置聊天状态 - 传递现有对话信息
+  if (conversation.messages && conversation.messages.length > 0) {
+    chatStore.currentConversation = {
+      id: conversation.id,
+      characterId: conversation.characterId,
+      title: conversation.title,
+      messages: conversation.messages || []
+    }
+  } else {
+    chatStore.selectConversation(conversation.id)
+  }
+  
+  // 跳转到聊天页面，使用角色ID
   router.push(`/chat/${conversation.characterId}`)
+}
+
+const continueConversation = async (conversation) => {
+  console.log('🎯 continueConversation 被调用 - 显示对话详情:', conversation)
+  
+  // 直接调用openConversation来显示对话详情
+  await openConversation(conversation)
 }
 
 const exportConversation = async (conversation) => {
@@ -844,6 +912,21 @@ const deleteConversation = async (conversationId) => {
 
 const goToHome = () => {
   router.push('/')
+}
+
+const handleImageError = (event) => {
+  // 图片加载失败时，用文字头像替代
+  const img = event.target
+  const characterId = selectedConversationDetail.value?.characterId
+  const character = getCharacterById(characterId)
+  
+  // 创建文字头像元素来替代图片
+  const avatarDiv = document.createElement('div')
+  avatarDiv.className = 'avatar-text character-avatar'
+  avatarDiv.textContent = character?.name?.charAt(0) || '角'
+  
+  // 替换图片元素
+  img.parentNode.replaceChild(avatarDiv, img)
 }
 
 const getLastMessage = (conversation) => {
@@ -1356,6 +1439,7 @@ const formatDuration = (conversation) => {
     overflow-y: auto;
     
     .detail-message {
+      display: flex;
       margin-bottom: 16px;
       padding: 12px;
       border-radius: 8px;
@@ -1363,26 +1447,78 @@ const formatDuration = (conversation) => {
       
       &.user-message {
         background: rgba(64, 158, 255, 0.1);
-        margin-left: 20px;
+        margin-left: 60px;
+        flex-direction: row-reverse;
+        
+        .message-avatar {
+          margin-left: 12px;
+          margin-right: 0;
+        }
+        
+        .message-body {
+          text-align: right;
+        }
       }
       
-      .message-sender {
-        font-size: 12px;
-        font-weight: bold;
-        color: #606266;
-        margin-bottom: 4px;
-      }
+             .message-avatar {
+         margin-right: 12px;
+         flex-shrink: 0;
+         width: 40px;
+         height: 40px;
+         overflow: hidden;
+         border-radius: 50%;
+         
+         .avatar-text {
+           width: 40px;
+           height: 40px;
+           border-radius: 50%;
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           font-size: 16px;
+           font-weight: bold;
+           color: white;
+           
+           &.user-avatar {
+             background: linear-gradient(135deg, #409eff, #66b1ff);
+           }
+           
+           &.character-avatar {
+             background: linear-gradient(135deg, #67c23a, #85ce61);
+           }
+         }
+         
+         .avatar-img {
+           width: 100%;
+           height: 100%;
+           border-radius: 50%;
+           object-fit: cover;
+           border: none;
+         }
+       }
       
-      .message-content {
-        font-size: 14px;
-        color: #303133;
-        line-height: 1.5;
-        margin-bottom: 4px;
-      }
-      
-      .message-time {
-        font-size: 11px;
-        color: #909399;
+      .message-body {
+        flex: 1;
+        
+        .message-sender {
+          font-size: 12px;
+          font-weight: bold;
+          color: #606266;
+          margin-bottom: 4px;
+        }
+        
+        .message-content {
+          font-size: 14px;
+          color: #303133;
+          line-height: 1.5;
+          margin-bottom: 4px;
+          word-wrap: break-word;
+        }
+        
+        .message-time {
+          font-size: 11px;
+          color: #909399;
+        }
       }
     }
   }
