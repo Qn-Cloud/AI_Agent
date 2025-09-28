@@ -4,6 +4,8 @@ import config from '../config'
 
 // 创建API实例的通用函数
 const createApiInstance = (baseURL, serviceName = '') => {
+  console.log(`🔧 创建API实例 [${serviceName}]:`, baseURL)
+  
   const api = axios.create({
     baseURL,
     timeout: 30000,
@@ -15,6 +17,8 @@ const createApiInstance = (baseURL, serviceName = '') => {
   // 请求拦截器
   api.interceptors.request.use(
     (config) => {
+      console.log(`🚀 [${serviceName}] 发起请求:`, config.method?.toUpperCase(), config.url, config.baseURL)
+      
       // 从localStorage获取token
       const token = localStorage.getItem('auth_token')
       if (token) {
@@ -23,7 +27,18 @@ const createApiInstance = (baseURL, serviceName = '') => {
       
       // 添加服务标识头部（可选）
       if (serviceName) {
-        config.headers['X-Service-Name'] = serviceName
+        // 避免中文字符导致的编码问题，使用英文
+        const serviceNameMap = {
+          '聊天服务': 'chat-service',
+          '角色服务': 'character-service',
+          '用户服务': 'user-service',
+          'AI服务': 'ai-service',
+          '语音服务': 'speech-service',
+          '存储服务': 'storage-service',
+          '网关服务': 'gateway-service',
+          '默认服务': 'default-service'
+        }
+        config.headers['X-Service-Name'] = serviceNameMap[serviceName] || serviceName
       }
       
       return config
@@ -36,6 +51,7 @@ const createApiInstance = (baseURL, serviceName = '') => {
   // 响应拦截器
   api.interceptors.response.use(
     (response) => {
+      console.log(`✅ [${serviceName}] 请求成功:`, response.status, response.config.url)
       const { data } = response
       
       // 后端统一响应格式：{ code, msg, data }
@@ -54,6 +70,8 @@ const createApiInstance = (baseURL, serviceName = '') => {
       }
     },
     (error) => {
+      console.error(`❌ [${serviceName}] 请求失败:`, error.message, error.config?.url)
+      
       if (error.response) {
         const { status, data } = error.response
         
@@ -83,6 +101,16 @@ const createApiInstance = (baseURL, serviceName = '') => {
 
   return api
 }
+
+// 打印配置信息用于调试
+console.log('🔧 API配置信息:', {
+  chatBaseUrl: config.api.chatBaseUrl,
+  characterBaseUrl: config.api.characterBaseUrl,
+  环境变量: {
+    VITE_CHAT_API_URL: import.meta.env.VITE_CHAT_API_URL,
+    VITE_CHARACTER_API_URL: import.meta.env.VITE_CHARACTER_API_URL
+  }
+})
 
 // 创建各个微服务的API实例
 export const chatApi = createApiInstance(config.api.chatBaseUrl, '聊天服务')

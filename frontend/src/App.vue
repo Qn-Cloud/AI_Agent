@@ -21,6 +21,9 @@
             <el-menu-item index="/history" class="menu-item">
               <span>历史</span>
             </el-menu-item>
+            <el-menu-item index="/api-test" class="menu-item">
+              <span>API测试</span>
+            </el-menu-item>
           </el-menu>
 
           <!-- 历史记录分组 -->

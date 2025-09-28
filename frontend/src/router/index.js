@@ -3,6 +3,7 @@ import Home from '../views/Home.vue'
 import Chat from '../views/Chat.vue'
 import History from '../views/History.vue'
 import Settings from '../views/Settings.vue'
+import ApiTest from '../views/ApiTest.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -45,6 +46,22 @@ const router = createRouter({
       component: Settings,
       meta: {
         title: '角色设置'
+      }
+    },
+    {
+      path: '/api-test',
+      name: 'api-test',
+      component: ApiTest,
+      meta: {
+        title: 'API测试'
+      }
+    },
+    {
+      path: '/api-test',
+      name: 'api-test',
+      component: ApiTest,
+      meta: {
+        title: 'API测试'
       }
     }
   ]

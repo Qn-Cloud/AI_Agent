@@ -71,6 +71,18 @@ const mountApp = () => {
     performanceMonitor.end('app-init')
     console.log('🚀 App initialized successfully!')
     console.log('📊 Performance metrics:', performanceMonitor.getAllMetrics())
+    
+    // 输出API配置信息
+    console.log('🔧 当前API配置:', {
+      chatBaseUrl: config.api?.chatBaseUrl,
+      characterBaseUrl: config.api?.characterBaseUrl,
+      环境变量: {
+        VITE_CHAT_API_URL: import.meta.env.VITE_CHAT_API_URL,
+        VITE_CHARACTER_API_URL: import.meta.env.VITE_CHARACTER_API_URL,
+        NODE_ENV: import.meta.env.NODE_ENV,
+        DEV: import.meta.env.DEV
+      }
+    })
   }
 }
 

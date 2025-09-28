@@ -337,7 +337,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCharacterStore } from '../stores/character'
 import { useChatStore } from '../stores/chat'
@@ -347,6 +347,36 @@ import { Search, ChatDotRound, Timer, User, Calendar } from '@element-plus/icons
 const router = useRouter()
 const characterStore = useCharacterStore()
 const chatStore = useChatStore()
+
+// 手动测试API
+const testApi = async () => {
+  console.log('🧪 手动测试API连接...')
+  try {
+    const result = await chatStore.testApiConnection()
+    console.log('🧪 API测试结果:', result)
+  } catch (error) {
+    console.error('🧪 API测试失败:', error)
+  }
+}
+
+// 初始化数据
+onMounted(async () => {
+  console.log('History页面挂载，开始初始化数据...')
+  
+  // 初始化角色数据
+  if (characterStore.characters.length === 0) {
+    await characterStore.loadCharacters()
+  }
+  
+  // 初始化对话历史数据
+  await chatStore.initializeData()
+  
+  console.log('History页面数据初始化完成')
+  
+  // 自动测试API连接
+  console.log('🧪 自动测试API连接...')
+  await testApi()
+})
 
 // 响应式数据
 const searchQuery = ref('')
