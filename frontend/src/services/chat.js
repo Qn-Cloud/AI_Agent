@@ -26,14 +26,18 @@ export const chatApiService = {
 
   // 获取对话历史
   getConversationHistory(params = {}) {
-    return chatApi.post('/api/chat/history', {
+    const requestData = {
       page: params.page || 1,
       page_size: params.pageSize || 20,
       character_id: params.characterId,
-      user_id: params.userId || 1, // 临时硬编码，后续从token获取
+      user_id: 1, // 固定设置为1，后续从JWT token获取
       start_time: params.startTime,
       end_time: params.endTime
-    })
+    }
+    
+    console.log('📤 发送getConversationHistory请求:', requestData)
+    
+    return chatApi.post('/api/chat/history', requestData)
   },
 
   // 保留原有方法名作为别名，避免前端代码大量修改

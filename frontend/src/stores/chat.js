@@ -155,7 +155,7 @@ export const useChatStore = defineStore('chat', {
           page: params.page || 1,
           pageSize: params.pageSize || 20,
           characterId: params.characterId,
-          userId: params.userId || 1,
+          userId: 1, // 明确设置为1
           startTime: params.startTime,
           endTime: params.endTime
         })

@@ -136,14 +136,14 @@ type UpdateTitleRequest struct {
 }
 
 type GetConversationHistoryRequest struct {
-	Keyword     string `form:"keyword,optional,omitempty"`
-	Page        int    `form:"page,optional,default=1"`
-	PageSize    int    `form:"page_size,optional,default=20"`
-	UserID      int64  `form:"user_id,optional,omitempty"`
-	StartTime   string `form:"start_time,optional,omitempty"`
-	EndTime     string `form:"end_time,optional,omitempty"`
-	SortBy      int    `form:"sort_by,optional,omitempty"`
-	CharacterID int    `form:"character_id,optional,omitempty"`
+	Keyword     string `json:"keyword,optional,omitempty"`
+	Page        int    `json:"page,optional,default=1"`
+	PageSize    int    `json:"page_size,optional,default=20"`
+	UserID      int64  `json:"user_id,optional,omitempty"`
+	StartTime   string `json:"start_time,optional,omitempty"`
+	EndTime     string `json:"end_time,optional,omitempty"`
+	SortBy      int    `json:"sort_by,optional,omitempty"`
+	CharacterID int    `json:"character_id,optional,omitempty"`
 }
 
 type GetConversationHistoryResponse struct {

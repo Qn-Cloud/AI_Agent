@@ -55,7 +55,8 @@ const testChatApi = async () => {
     console.log('🧪 开始测试聊天API')
     const result = await chatApiService.getConversationHistory({
       page: 1,
-      pageSize: 10
+      pageSize: 10,
+      userId: 1
     })
     
     testResults.value += `✅ 聊天API测试成功:\n${JSON.stringify(result, null, 2)}\n`
