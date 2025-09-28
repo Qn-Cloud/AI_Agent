@@ -427,7 +427,6 @@ export const useChatStore = defineStore('chat', {
     async sendMessageSSE(data, onUpdate) {
       return new Promise((resolve, reject) => {
         const baseURL = chatApi.defaults?.baseURL || ''
-        const url = `${baseURL}/api/chat/send`
         
         const requestData = {
           conversation_id: data.conversationId,
@@ -437,37 +436,51 @@ export const useChatStore = defineStore('chat', {
           user_id: 1 // 暂时固定为1
         }
         
-        console.log('📤 发送SSE聊天请求:', requestData)
+        console.log('📤 发送SSE聊天请求到:', `${baseURL}/api/chat/send`)
+        console.log('📤 请求参数:', requestData)
+        console.log('🔍 chatApi baseURL:', chatApi.defaults?.baseURL)
+        console.log('🔍 实际baseURL:', baseURL)
+        
+        // 由于EventSource只支持GET请求，我们需要将参数作为查询参数
+        const queryParams = new URLSearchParams(requestData).toString()
+        const url = `${baseURL}/api/chat/send?${queryParams}`
+        
+        console.log('🔗 完整SSE URL:', url)
         
         // 创建EventSource连接
-        const eventSource = new EventSource(url + '?' + new URLSearchParams(requestData))
+        const eventSource = new EventSource(url)
         
         let aiResponse = ''
         let messageId = null
         let isComplete = false
         
         eventSource.onopen = () => {
-          console.log('🔗 SSE连接已建立')
+          console.log('✅ SSE连接已建立')
         }
         
         eventSource.onmessage = (event) => {
           try {
-            const data = JSON.parse(event.data)
-            console.log('📨 收到SSE消息:', data)
+            console.log('📨 收到原始SSE数据:', event.data)
+            const responseData = JSON.parse(event.data)
+            console.log('📨 解析后的SSE消息:', responseData)
             
-            if (data.type === 'message') {
+            if (responseData.type === 'message') {
               // 接收到AI回复的片段
-              aiResponse += data.content
-              messageId = data.message_id
+              aiResponse += responseData.content || ''
+              messageId = responseData.message_id
+              
+              console.log('📝 累积回复内容:', aiResponse)
               
               // 触发实时更新回调
               if (onUpdate) {
                 onUpdate(aiResponse)
               }
-            } else if (data.type === 'complete') {
+            } else if (responseData.type === 'complete') {
               // 回复完成
               isComplete = true
               eventSource.close()
+              
+              console.log('✅ SSE回复完成，最终内容:', aiResponse)
               
               resolve({
                 data: {
@@ -478,28 +491,32 @@ export const useChatStore = defineStore('chat', {
                   }
                 }
               })
-            } else if (data.type === 'error') {
+            } else if (responseData.type === 'error') {
               // 发生错误
+              console.error('❌ 服务端返回错误:', responseData.message)
               eventSource.close()
-              reject(new Error(data.message || '聊天请求失败'))
+              reject(new Error(responseData.message || '聊天请求失败'))
             }
           } catch (error) {
-            console.error('❌ 解析SSE消息失败:', error, event.data)
+            console.error('❌ 解析SSE消息失败:', error)
+            console.error('❌ 原始数据:', event.data)
           }
         }
         
         eventSource.onerror = (error) => {
           console.error('❌ SSE连接错误:', error)
+          console.error('❌ EventSource readyState:', eventSource.readyState)
           eventSource.close()
           
           if (!isComplete) {
-            reject(new Error('连接中断'))
+            reject(new Error('SSE连接中断'))
           }
         }
         
         // 设置超时
         setTimeout(() => {
           if (!isComplete) {
+            console.warn('⏰ SSE请求超时')
             eventSource.close()
             reject(new Error('请求超时'))
           }

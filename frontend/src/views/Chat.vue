@@ -22,6 +22,9 @@
         </div>
       </div>
       <div class="header-right">
+        <el-button @click="testSSEConnection" type="success" size="small">
+          测试SSE
+        </el-button>
         <el-button @click="testSpeechService" type="primary" size="small">
           测试语音
         </el-button>
@@ -357,6 +360,27 @@ const testSpeechService = async () => {
   } catch (error) {
     console.error('❌ 语音服务连接失败:', error)
     ElMessage.error(`语音服务连接失败: ${error.message}`)
+  }
+}
+
+// 测试SSE连接
+const testSSEConnection = async () => {
+  try {
+    console.log('�� 开始测试SSE连接...')
+    ElMessage.info('正在测试SSE连接...')
+    
+    // 模拟一个简单的SSE请求
+    const response = await fetch('http://localhost:8000/sse/test') // 替换为实际的SSE端点
+    if (response.ok) {
+      console.log('✅ SSE连接成功')
+      ElMessage.success('SSE连接正常！')
+    } else {
+      console.error('❌ SSE连接失败:', response.status, response.statusText)
+      ElMessage.error(`SSE连接失败: ${response.status} ${response.statusText}`)
+    }
+  } catch (error) {
+    console.error('❌ SSE连接失败:', error)
+    ElMessage.error(`SSE连接失败: ${error.message}`)
   }
 }
 

@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	DeepSeek_Api_Key = "sk-636bd4e9653f45ba852ff77d8d3502f7"
+	DeepSeek_Api_Key = ""
 	DeepSeek_Url     = "https://api.deepseek.com"
 	DeepSeek_Model   = "deepseek-chat"
 	//DeepSeekBearApiKey = "Bearer sk-0c9c8a4a2cc14304b1fc47c63301101c"
