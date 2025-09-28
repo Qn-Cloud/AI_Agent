@@ -54,6 +54,18 @@ func (l *SpeechToTextLogic) SpeechToText(req *types.SpeechToTextRequest) (resp *
 
 	// 根据配置选择语音识别服务
 	provider := l.svcCtx.Config.Speech.ASR.Provider
+	l.Logger.Infof("🔍 当前配置的ASR提供商: %s", provider)
+
+	// 检查腾讯云配置
+	tencentConfig := l.svcCtx.Config.External.Tencent
+	if len(tencentConfig.SecretID) > 10 && len(tencentConfig.SecretKey) > 10 {
+		l.Logger.Infof("🔍 腾讯云配置: SecretID=%s..., SecretKey=%s...",
+			tencentConfig.SecretID[:10], tencentConfig.SecretKey[:10])
+	} else {
+		l.Logger.Infof("🔍 腾讯云配置: SecretID=%s, SecretKey=%s",
+			tencentConfig.SecretID, tencentConfig.SecretKey)
+	}
+
 	var recognizedText string
 	var confidence float64
 	var duration float64
